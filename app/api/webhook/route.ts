@@ -32,12 +32,10 @@ export async function POST(request: Request) {
 
       const docRef = dbAdmin.collection("patungan").doc(projectId);
       
-      // 1. AMBIL DATA DULU BUAT CEK BIAR GAK DOUBLE
       const docSnap = await docRef.get();
       if (!docSnap.exists) return NextResponse.json({ error: "Project Not Found" }, { status: 404 });
       
       const projectData = docSnap.data();
-      // Cek apakah Order ID ini sudah pernah diproses sebelumnya
       const sudahAda = projectData?.riwayat?.some((r: any) => r.order_id === data.order_id);
 
       if (sudahAda) {
@@ -45,23 +43,27 @@ export async function POST(request: Request) {
         return NextResponse.json({ status: "Already Processed" }, { status: 200 });
       }
 
-      const nominal = Number(data.gross_amount);
+      // --- LOGIKA POTONG ADMIN (Update di sini) ---
+      const BIAYA_ADMIN = 7000;
+      const grossAmount = Number(data.gross_amount);
+      const nominalBersih = Math.max(grossAmount - BIAYA_ADMIN, 0); 
+
       const namaAsli = data.customer_details?.first_name || data.customer_details?.full_name || (usernameDariId.charAt(0).toUpperCase() + usernameDariId.slice(1));
 
-      // 2. UPDATE CUMA SEKALI AJA (GABUNGIN SEMUA DI SINI)
+      // 2. UPDATE CUMA SEKALI AJA (Pake nominalBersih)
       await docRef.update({
-        terkumpul: admin.firestore.FieldValue.increment(nominal),
+        terkumpul: admin.firestore.FieldValue.increment(nominalBersih),
         riwayat: admin.firestore.FieldValue.arrayUnion({
-          order_id: data.order_id, // Simpan ID biar bisa dicek sama "SATPAM" di atas
+          order_id: data.order_id,
           nama: namaAsli, 
           username: usernameDariId, 
-          nominal: nominal,
+          nominal: nominalBersih, // Simpan nominal bersih (misal: 50000)
           waktu: admin.firestore.Timestamp.now(),
           metode: data.payment_type || "transfer"
         })
       });
 
-      console.log(`🚀 SALDO BERHASIL DIUPDATE UNTUK @${usernameDariId}`);
+      console.log(`🚀 SALDO BERSIH (+Rp ${nominalBersih}) UPDATE UNTUK @${usernameDariId}`);
       return NextResponse.json({ status: "OK" }, { status: 200 });
     }
 

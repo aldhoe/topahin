@@ -267,24 +267,34 @@ const executeDeleteRundown = async () => {
   if (inputNominal <= 0) return showToast("Masukin nominal yang mau dibayar dulu ya! 💸", "error");
 
   try {
-    // 1. SIAPIN USERNAME (Ambil dari profil atau email sebelum tanda @ kalau gak ada)
+    // --- TAMBAHAN BIAYA ADMIN (Biar lu gak tekor) ---
+    const BIAYA_ADMIN = 7000;
+    const totalTagihan = inputNominal + BIAYA_ADMIN;
+    
+    // 1. SIAPIN USERNAME (Tetap kode lu)
     const usernameClean = profile?.username || auth.currentUser.email?.split('@')[0] || "anonim";
     
-    // 2. BIKIN ORDER ID YANG ADA USERNAME-NYA
-    // Format: idProject-username-timestamp
+    // 2. BIKIN ORDER ID (Tetap kode lu)
     const orderId = `${id}-${usernameClean.replace(/\s/g, "").toLowerCase()}-${Date.now()}`;
     
     const response = await fetch("/api/checkout", {
       method: "POST",
       body: JSON.stringify({
-        orderId: orderId, // <--- Pake ID yang baru
-        amount: inputNominal,
+        orderId: orderId, 
+        amount: totalTagihan, // <--- UPDATE JADI TOTAL (Nominal + 7000)
         itemDetails: [
           { 
             id: id, 
-            price: inputNominal, 
+            price: inputNominal, // <--- Nominal Bersih
             quantity: 1, 
             name: `Patungan: ${data.namaPatungan}` 
+          },
+          // --- TAMBAHAN BARIS ADMIN DI ITEM DETAILS ---
+          {
+            id: "FEE-ADMIN",
+            price: BIAYA_ADMIN,
+            quantity: 1,
+            name: "Biaya Layanan Sistem"
           }
         ],
         customerDetails: { 
@@ -471,6 +481,25 @@ const persentaseTotal = Math.min(Math.floor((totalTerkumpul / targetProyek) * 10
               ⚡ LUNASIN (Rp {sisaTagihan.toLocaleString('id-ID')})
             </button>
           </div>
+
+          {/* RINCIAN BIAYA (Tambahan Baru) */}
+          <div className="mt-4 p-4 bg-slate-50 rounded-2xl border border-dashed border-slate-200 mb-6">
+            <div className="flex justify-between items-center text-[10px] font-bold text-slate-500 uppercase">
+              <span>Tabungan Bersih:</span>
+              <span className="text-slate-800">Rp {inputNominal.toLocaleString('id-ID')}</span>
+            </div>
+            <div className="flex justify-between items-center text-[10px] font-bold text-slate-500 uppercase mt-2">
+              <span>Biaya Layanan:</span>
+              <span className="text-cyan-600">+ Rp 7.000</span>
+            </div>
+            <div className="h-[1px] bg-slate-200 my-3" />
+            <div className="flex justify-between items-center text-xs font-black text-slate-800 uppercase">
+              <span>Total Bayar:</span>
+              <span className="text-lg text-slate-900">
+                Rp {(inputNominal + 7000).toLocaleString('id-ID')}
+              </span>
+            </div>
+          </div>
           
           <button 
             type="button"
@@ -483,7 +512,8 @@ const persentaseTotal = Math.min(Math.floor((totalTerkumpul / targetProyek) * 10
             }`}
           >
             <span className="text-xl">💳</span>
-            {inputNominal > 0 ? `BAYAR Rp ${inputNominal.toLocaleString('id-ID')}` : "MASUKKAN NOMINAL"}
+            {/* Update teks tombol biar jujur totalnya */}
+            {inputNominal > 0 ? `BAYAR Rp ${(inputNominal + 7000).toLocaleString('id-ID')}` : "MASUKKAN NOMINAL"}
           </button>
 
           <p className="text-[9px] text-slate-500 font-bold mt-3 uppercase">
