@@ -409,7 +409,7 @@ const persentaseTotal = Math.min(Math.floor((totalTerkumpul / targetProyek) * 10
     <div className="flex items-center gap-1.5">
       <div className="w-1.5 h-1.5 rounded-full bg-cyan-500 animate-pulse" />
       <p className="text-[9px] font-bold text-slate-400 uppercase">
-        Target Proyek: Rp {targetProyek.toLocaleString('id-ID')}
+        Target Project: Rp {targetProyek.toLocaleString('id-ID')}
       </p>
     </div>
     <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">
@@ -418,49 +418,73 @@ const persentaseTotal = Math.min(Math.floor((totalTerkumpul / targetProyek) * 10
   </div>
 </div>
 
-    {/* TOMBOL BAYAR ASLI (Gantiin simulasi input dana) */}
+    {/* 1. HITUNG SISA TAGIHAN KHUSUS USER INI */}
+{(() => {
+  // Hitung total yang sudah dibayar oleh user yang sedang login
+  const myUsername = profile?.username || auth.currentUser?.email?.split('@')[0] || "";
+  const sudahDibayar = data.riwayat
+    ?.filter((r: any) => (r.username || "").toLowerCase() === myUsername.toLowerCase())
+    .reduce((acc: number, curr: any) => acc + (Number(curr.nominal) || 0), 0) || 0;
+
+  // Sisa yang harus dilunasi
+  const sisaTagihan = Math.max(data.targetPerOrang - sudahDibayar, 0);
+  const isSudahLunas = sudahDibayar >= data.targetPerOrang;
+
+  return (
     <div className="bg-white p-6 rounded-[32px] border border-slate-100 mb-8 text-center">
-  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Mau Bayar Berapa?</p>
-  
-  {/* INPUT NOMINAL BEBAS */}
-  <div className="relative mb-4 group">
-    <span className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 font-black text-xl group-focus-within:text-cyan-500 transition-colors">Rp</span>
-    <input
-      type="number"
-      placeholder={data.targetPerOrang?.toLocaleString('id-ID')}
-      value={inputNominal || ""}
-      onChange={(e) => setInputNominal(Number(e.target.value))}
-      className="w-full pl-14 pr-6 py-5 bg-slate-50 border-2 border-transparent focus:border-cyan-500 focus:bg-white rounded-3xl text-2xl font-black text-slate-800 outline-none transition-all placeholder:text-slate-300"
-    />
-  </div>
+      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">
+        {isSudahLunas ? "Satus Kamu: LUNAS 🔥" : "Mau Bayar Berapa?"}
+      </p>
+      
+      {!isSudahLunas ? (
+        <>
+          {/* INPUT NOMINAL BEBAS */}
+          <div className="relative mb-4 group">
+            <span className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 font-black text-xl group-focus-within:text-cyan-500 transition-colors">Rp</span>
+            <input
+              type="number"
+              placeholder={sisaTagihan.toLocaleString('id-ID')}
+              value={inputNominal || ""}
+              onChange={(e) => setInputNominal(Number(e.target.value))}
+              className="w-full pl-14 pr-6 py-5 bg-slate-50 border-2 border-transparent focus:border-cyan-500 focus:bg-white rounded-3xl text-2xl font-black text-slate-800 outline-none transition-all placeholder:text-slate-300"
+            />
+          </div>
 
-  {/* TOMBOL CEPAT (LUNASIN) */}
-  <div className="flex gap-2 mb-6">
-    <button 
-      onClick={() => setInputNominal(data.targetPerOrang)}
-      className="flex-1 py-2 bg-slate-100 hover:bg-cyan-100 text-[10px] font-black text-slate-500 hover:text-cyan-600 rounded-full transition-all border border-slate-200"
-    >
-      ⚡ LUNASIN (Rp {data.targetPerOrang?.toLocaleString('id-ID')})
-    </button>
-  </div>
-  
-  <button 
-    onClick={handlePayment}
-    disabled={!inputNominal || inputNominal <= 0}
-    className={`w-full py-5 font-black rounded-2xl shadow-lg active:scale-95 transition-all flex items-center justify-center gap-3 ${
-      inputNominal > 0 
-        ? "bg-gradient-to-tr from-cyan-500 to-teal-400 text-slate-900 shadow-cyan-500/20" 
-        : "bg-slate-200 text-slate-400 cursor-not-allowed shadow-none"
-    }`}
-  >
-    <span className="text-xl">💳</span>
-    {inputNominal > 0 ? `BAYAR Rp ${inputNominal.toLocaleString('id-ID')}` : "MASUKKAN NOMINAL"}
-  </button>
+          {/* TOMBOL CEPAT (LUNASIN SISA) */}
+          <div className="flex gap-2 mb-6">
+            <button 
+              onClick={() => setInputNominal(sisaTagihan)}
+              className="flex-1 py-2 bg-cyan-50 hover:bg-cyan-100 text-[10px] font-black text-cyan-600 rounded-full transition-all border border-cyan-100 flex items-center justify-center gap-2"
+            >
+              ⚡ LUNASIN (Rp {sisaTagihan.toLocaleString('id-ID')})
+            </button>
+          </div>
+          
+          <button 
+            onClick={handlePayment}
+            disabled={!inputNominal || inputNominal <= 0}
+            className={`w-full py-5 font-black rounded-2xl shadow-lg active:scale-95 transition-all flex items-center justify-center gap-3 ${
+              inputNominal > 0 
+                ? "bg-gradient-to-tr from-cyan-500 to-teal-400 text-slate-900 shadow-cyan-500/20" 
+                : "bg-slate-200 text-slate-400 cursor-not-allowed shadow-none"
+            }`}
+          >
+            <span className="text-xl">💳</span>
+            {inputNominal > 0 ? `BAYAR Rp ${inputNominal.toLocaleString('id-ID')}` : "MASUKKAN NOMINAL"}
+          </button>
+        </>
+      ) : (
+        <div className="py-4 px-6 bg-teal-50 border-2 border-teal-100 rounded-3xl">
+           <p className="text-teal-600 font-black text-sm uppercase">Terima kasih! Kamu sudah lunas. ✨</p>
+        </div>
+      )}
 
-  <p className="text-[9px] text-slate-400 mt-4 font-bold uppercase tracking-tighter italic">
-    *Mendukung QRIS, GoPay, ShopeePay & Transfer Bank
-  </p>
-</div>
+      <p className="text-[9px] text-slate-400 mt-4 font-bold uppercase tracking-tighter italic">
+        *Mendukung QRIS, GoPay, ShopeePay & Transfer Bank
+      </p>
+    </div>
+  );
+})()}
 
             {/* Riwayat */}
             <h3 className="font-bold text-slate-800 mb-4 text-sm uppercase">Riwayat Transaksi</h3>
