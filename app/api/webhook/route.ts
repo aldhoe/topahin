@@ -1,44 +1,56 @@
 import { NextResponse } from "next/server";
-import { db } from "@/lib/firebase";
-import { doc, updateDoc, increment, arrayUnion, getDoc } from "firebase/firestore";
+import * as admin from "firebase-admin";
+
+// Inisialisasi Admin SDK (Cek biar gak dobel)
+if (!admin.apps.length) {
+  try {
+    admin.initializeApp({
+      credential: admin.credential.cert({
+        projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+        // Replace \n biar line break-nya bener di Vercel
+        privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+      }),
+    });
+    console.log("✅ Firebase Admin Berhasil Inisialisasi");
+  } catch (error: any) {
+    console.error("❌ Firebase Admin Init Error:", error.message);
+  }
+}
+
+const dbAdmin = admin.firestore();
 
 export async function POST(request: Request) {
   try {
     const data = await request.json();
-    console.log("Dapet notifikasi dari Midtrans:", data);
+    console.log("📩 Webhook Masuk:", data.order_id, data.transaction_status);
 
-    // 1. Cek statusnya. 'settlement' artinya duit beneran udah masuk/lunas.
-    if (data.transaction_status === "settlement") {
+    if (data.transaction_status === "settlement" || data.transaction_status === "capture") {
+      // Potong order_id buat dapet ID Dokumen (ID-TIMESTAMP)
+      const projectId = data.order_id.split("-")[0];
       
-      // Ingat tadi kita bikin order_id formatnya "${id}-${Date.now()}"?
-      // Kita pecah lagi buat dapetin ID Project aslinya.
-      const orderIdParts = data.order_id.split("-");
-      const projectId = orderIdParts[0]; // ID project Firestore
+      const docRef = dbAdmin.collection("patungan").doc(projectId);
+      const nominal = parseFloat(data.gross_amount);
 
-      const docRef = doc(db, "patungan", projectId);
-      const projectSnap = await getDoc(docRef);
+      // Pake Admin SDK: Gak peduli Rules, PASTI TEMBUS
+      await docRef.update({
+        terkumpul: admin.firestore.FieldValue.increment(nominal),
+        riwayat: admin.firestore.FieldValue.arrayUnion({
+          nama: data.customer_details?.full_name || "Anggota",
+          nominal: nominal,
+          waktu: admin.firestore.Timestamp.now(),
+          metode: data.payment_type || "transfer",
+          username: "system_payment"
+        })
+      });
 
-      if (projectSnap.exists()) {
-        // 2. UPDATE FIRESTORE OTOMATIS
-        await updateDoc(docRef, {
-          terkumpul: increment(Number(data.gross_amount)), // Nambahin saldo terkumpul
-          riwayat: arrayUnion({
-            nama: data.customer_details?.first_name || "Anggota",
-            nominal: Number(data.gross_amount),
-            waktu: new Date(), // Simpan waktu bayar
-            metode: data.payment_type // 'credit_card', 'gopay', 'qris', dll
-          })
-        });
-        
-        console.log("Firestore berhasil diupdate otomatis! 💸");
-      }
+      console.log("🚀 SALDO BERHASIL DIUPDATE!");
+      return NextResponse.json({ status: "OK" }, { status: 200 });
     }
 
-    // 3. Kasih tau Midtrans kalau datanya udah kita terima (Wajib)
-    return NextResponse.json({ status: "OK" });
-
-  } catch (error) {
-    console.error("Webhook Error:", error);
-    return NextResponse.json({ error: "Gagal proses webhook" }, { status: 500 });
+    return NextResponse.json({ status: "Received" });
+  } catch (error: any) {
+    console.error("❌ ERROR WEBHOOK:", error.message);
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
