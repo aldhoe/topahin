@@ -428,8 +428,8 @@ const persentaseTotal = Math.min(Math.floor((totalTerkumpul / targetProyek) * 10
     ?.filter((r: any) => (r.username || "").toLowerCase() === myUsername.toLowerCase())
     .reduce((acc: number, curr: any) => acc + (Number(curr.nominal) || 0), 0) || 0;
 
-  // 3. Sisa yang harus dilunasi secara pribadi
-  const sisaTagihan = Math.max(data.targetPerOrang - sudahDibayar, 0);
+  // 3. Sisa yang harus dilunasi secara pribadi (Dinamis)
+  const sisaTagihan = Math.max((data.targetPerOrang || 0) - sudahDibayar, 0);
   const isSudahLunas = sudahDibayar >= data.targetPerOrang;
 
   // 4. Fungsi Validasi Input (Ngerem biar gak kelebihan)
@@ -444,7 +444,7 @@ const persentaseTotal = Math.min(Math.floor((totalTerkumpul / targetProyek) * 10
   return (
     <div className="bg-white p-6 rounded-[32px] border border-slate-100 mb-8 text-center shadow-sm">
       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">
-        {isSudahLunas ? "Status Kamu: LUNAS 🔥" : "Mau Bayar Berapa?"}
+        {isSudahLunas ? "STATUS KAMU: LUNAS 🔥" : "Mau Bayar Berapa?"}
       </p>
       
       {!isSudahLunas ? (
@@ -457,14 +457,14 @@ const persentaseTotal = Math.min(Math.floor((totalTerkumpul / targetProyek) * 10
               placeholder={sisaTagihan.toLocaleString('id-ID')}
               value={inputNominal || ""}
               onChange={(e) => handleAmountChange(Number(e.target.value))}
-              max={sisaTagihan}
               className="w-full pl-14 pr-6 py-5 bg-slate-50 border-2 border-transparent focus:border-cyan-500 focus:bg-white rounded-3xl text-2xl font-black text-slate-800 outline-none transition-all placeholder:text-slate-300"
             />
           </div>
 
-          {/* TOMBOL CEPAT (LUNASIN SISA) */}
+          {/* TOMBOL CEPAT (LUNASIN SISA - OTOMATIS NYESUAIN) */}
           <div className="flex gap-2 mb-6">
             <button 
+              type="button"
               onClick={() => setInputNominal(sisaTagihan)}
               className="flex-1 py-2 bg-cyan-50 hover:bg-cyan-100 text-[10px] font-black text-cyan-600 rounded-full transition-all border border-cyan-100 flex items-center justify-center gap-2"
             >
@@ -473,8 +473,8 @@ const persentaseTotal = Math.min(Math.floor((totalTerkumpul / targetProyek) * 10
           </div>
           
           <button 
+            type="button"
             onClick={handlePayment}
-            /* Tombol mati kalau: Kosong, <= 0, atau > sisa tagihan */
             disabled={!inputNominal || inputNominal <= 0 || inputNominal > sisaTagihan}
             className={`w-full py-5 font-black rounded-2xl shadow-lg active:scale-95 transition-all flex items-center justify-center gap-3 ${
               (inputNominal > 0 && inputNominal <= sisaTagihan)
@@ -486,7 +486,7 @@ const persentaseTotal = Math.min(Math.floor((totalTerkumpul / targetProyek) * 10
             {inputNominal > 0 ? `BAYAR Rp ${inputNominal.toLocaleString('id-ID')}` : "MASUKKAN NOMINAL"}
           </button>
 
-          <p className="text-[9px] text-slate-500 font-bold mt-3 uppercase">
+          <p className="text-[9px] text-slate-500 font-bold mt-3 uppercase tracking-wider">
              Sisa Tagihanmu: Rp {sisaTagihan.toLocaleString('id-ID')}
           </p>
         </>
@@ -494,7 +494,7 @@ const persentaseTotal = Math.min(Math.floor((totalTerkumpul / targetProyek) * 10
         <div className="py-6 px-6 bg-emerald-50 border-2 border-emerald-100 rounded-[24px] flex flex-col items-center gap-2">
            <div className="w-12 h-12 bg-emerald-500 text-white rounded-full flex items-center justify-center text-xl shadow-lg shadow-emerald-200">✓</div>
            <p className="text-emerald-700 font-black text-sm uppercase">Terima kasih! Kamu sudah lunas.</p>
-           <p className="text-[10px] text-emerald-600 font-bold">Total kontribusimu: Rp {sudahDibayar.toLocaleString('id-ID')}</p>
+           <p className="text-[10px] text-emerald-600 font-bold uppercase">Total kontribusimu: Rp {sudahDibayar.toLocaleString('id-ID')}</p>
         </div>
       )}
 
