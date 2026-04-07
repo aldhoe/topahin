@@ -420,22 +420,22 @@ const persentaseTotal = Math.min(Math.floor((totalTerkumpul / targetProyek) * 10
 
     {/* TOMBOL BAYAR DENGAN VALIDASI SISA TAGIHAN PRIBADI */}
 {(() => {
-  // 1. Identifikasi User
+  // 1. IDENTIFIKASI USER (SESUAI KODE AWAL LU)
   const myUsername = profile?.username || auth.currentUser?.email?.split('@')[0] || "";
   
-  // 2. Hitung total yang sudah dibayar oleh user ini saja
+  // 2. HITUNG TOTAL YANG SUDAH DIBAYAR USER INI
   const sudahDibayar = data.riwayat
     ?.filter((r: any) => (r.username || "").toLowerCase() === myUsername.toLowerCase())
     .reduce((acc: number, curr: any) => acc + (Number(curr.nominal) || 0), 0) || 0;
 
-  // 3. Sisa yang harus dilunasi secara pribadi (Dinamis)
+  // 3. SISA YANG HARUS DILUNASI (INI YANG JADI PATOKAN TOMBOL LUNASIN)
   const sisaTagihan = Math.max((data.targetPerOrang || 0) - sudahDibayar, 0);
   const isSudahLunas = sudahDibayar >= data.targetPerOrang;
 
-  // 4. Fungsi Validasi Input (Ngerem biar gak kelebihan)
+  // 4. FUNGSI NGEREM INPUT
   const handleAmountChange = (val: number) => {
     if (val > sisaTagihan) {
-      setInputNominal(sisaTagihan); // Paksa mentok di sisa
+      setInputNominal(sisaTagihan); 
     } else {
       setInputNominal(val);
     }
@@ -449,7 +449,7 @@ const persentaseTotal = Math.min(Math.floor((totalTerkumpul / targetProyek) * 10
       
       {!isSudahLunas ? (
         <>
-          {/* INPUT NOMINAL DENGAN LIMIT SISA */}
+          {/* INPUT NOMINAL */}
           <div className="relative mb-4 group">
             <span className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 font-black text-xl group-focus-within:text-cyan-500 transition-colors">Rp</span>
             <input
@@ -461,7 +461,7 @@ const persentaseTotal = Math.min(Math.floor((totalTerkumpul / targetProyek) * 10
             />
           </div>
 
-          {/* TOMBOL CEPAT (LUNASIN SISA - OTOMATIS NYESUAIN) */}
+          {/* TOMBOL LUNASIN (SEKARANG PAKE sisaTagihan, BUKAN TARGET AWAL) */}
           <div className="flex gap-2 mb-6">
             <button 
               type="button"
@@ -486,7 +486,7 @@ const persentaseTotal = Math.min(Math.floor((totalTerkumpul / targetProyek) * 10
             {inputNominal > 0 ? `BAYAR Rp ${inputNominal.toLocaleString('id-ID')}` : "MASUKKAN NOMINAL"}
           </button>
 
-          <p className="text-[9px] text-slate-500 font-bold mt-3 uppercase tracking-wider">
+          <p className="text-[9px] text-slate-500 font-bold mt-3 uppercase">
              Sisa Tagihanmu: Rp {sisaTagihan.toLocaleString('id-ID')}
           </p>
         </>
@@ -494,13 +494,9 @@ const persentaseTotal = Math.min(Math.floor((totalTerkumpul / targetProyek) * 10
         <div className="py-6 px-6 bg-emerald-50 border-2 border-emerald-100 rounded-[24px] flex flex-col items-center gap-2">
            <div className="w-12 h-12 bg-emerald-500 text-white rounded-full flex items-center justify-center text-xl shadow-lg shadow-emerald-200">✓</div>
            <p className="text-emerald-700 font-black text-sm uppercase">Terima kasih! Kamu sudah lunas.</p>
-           <p className="text-[10px] text-emerald-600 font-bold uppercase">Total kontribusimu: Rp {sudahDibayar.toLocaleString('id-ID')}</p>
+           <p className="text-[10px] text-emerald-600 font-bold">Total kontribusimu: Rp {sudahDibayar.toLocaleString('id-ID')}</p>
         </div>
       )}
-
-      <p className="text-[9px] text-slate-400 mt-4 font-bold uppercase tracking-tighter italic">
-        *Mendukung QRIS, GoPay, ShopeePay & Transfer Bank
-      </p>
     </div>
   );
 })()}
