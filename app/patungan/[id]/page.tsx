@@ -65,7 +65,7 @@ useEffect(() => {
   const [newItemInput, setNewItemInput] = useState("");
   const [newPackingPIC, setNewPackingPIC] = useState("");
 
-  const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: "success" | "error" | "info" } | null>(null);
   
   // State khusus Itinerary & Navigasi
   const [showItineraryForm, setShowItineraryForm] = useState(false);
@@ -144,7 +144,7 @@ const [showDeleteProjectModal, setShowDeleteProjectModal] = useState(false);
     setIsEditTipsOpen(false);
   };
 
-  const showToast = (message: string, type: "success" | "error") => {
+  const showToast = (message: string, type: "success" | "error" | "info") => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 3000);
   };
