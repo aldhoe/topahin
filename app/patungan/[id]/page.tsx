@@ -40,6 +40,7 @@ useEffect(() => {
 }, []);
 
   const [inputDana, setInputDana] = useState("");
+  const [inputNominal, setInputNominal] = useState<number>(0);
   const [paying, setPaying] = useState(false);
 
   const [isTipsOpen, setIsTipsOpen] = useState(false);
@@ -262,16 +263,25 @@ const executeDeleteRundown = async () => {
   const handlePayment = async () => {
   if (!auth.currentUser) return showToast("Login dulu yuk buat bayar! 🔑", "error");
   
+  // Validasi: Harus isi nominal dulu
+  if (inputNominal <= 0) return showToast("Masukin nominal yang mau dibayar dulu ya! 💸", "error");
+
   try {
-    const orderId = `${id}-${Date.now()}`; // ID unik biar gak bentrok di Midtrans
+    const orderId = `${id}-${Date.now()}`;
     
-    // 1. Minta Token ke API Route kita
     const response = await fetch("/api/checkout", {
       method: "POST",
       body: JSON.stringify({
         orderId: orderId,
-        amount: data.targetPerOrang, // Nominal tagihan per orang
-        itemDetails: [{ id: id, price: data.targetPerOrang, quantity: 1, name: data.namaPatungan }],
+        amount: inputNominal, // <--- GANTI INI (Bukan targetPerOrang lagi)
+        itemDetails: [
+          { 
+            id: id, 
+            price: inputNominal, // <--- HARUS SAMA DENGAN AMOUNT
+            quantity: 1, 
+            name: `Patungan: ${data.namaPatungan}` 
+          }
+        ],
         customerDetails: { 
           first_name: profile?.displayName || auth.currentUser.displayName, 
           email: auth.currentUser.email 
@@ -358,22 +368,47 @@ const executeDeleteRundown = async () => {
 
     {/* TOMBOL BAYAR ASLI (Gantiin simulasi input dana) */}
     <div className="bg-white p-6 rounded-[32px] border border-slate-100 mb-8 text-center">
-      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Tagihan Kamu</p>
-      <h2 className="text-3xl font-black text-slate-800 mb-6">
-        Rp {data.targetPerOrang?.toLocaleString('id-ID')}
-      </h2>
-      
-      <button 
-        onClick={handlePayment}
-        className="w-full py-5 bg-gradient-to-tr from-cyan-500 to-teal-400 text-slate-900 font-black rounded-2xl shadow-lg shadow-cyan-500/20 active:scale-95 transition-all flex items-center justify-center gap-3"
-      >
-        <span className="text-xl">💳</span>
-        BAYAR SEKARANG
-      </button>
-      <p className="text-[9px] text-slate-400 mt-4 font-bold uppercase tracking-tighter italic">
-        *Mendukung QRIS, GoPay, ShopeePay & Transfer Bank
-      </p>
-    </div>
+  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Mau Bayar Berapa?</p>
+  
+  {/* INPUT NOMINAL BEBAS */}
+  <div className="relative mb-4 group">
+    <span className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 font-black text-xl group-focus-within:text-cyan-500 transition-colors">Rp</span>
+    <input
+      type="number"
+      placeholder={data.targetPerOrang?.toLocaleString('id-ID')}
+      value={inputNominal || ""}
+      onChange={(e) => setInputNominal(Number(e.target.value))}
+      className="w-full pl-14 pr-6 py-5 bg-slate-50 border-2 border-transparent focus:border-cyan-500 focus:bg-white rounded-3xl text-2xl font-black text-slate-800 outline-none transition-all placeholder:text-slate-300"
+    />
+  </div>
+
+  {/* TOMBOL CEPAT (LUNASIN) */}
+  <div className="flex gap-2 mb-6">
+    <button 
+      onClick={() => setInputNominal(data.targetPerOrang)}
+      className="flex-1 py-2 bg-slate-100 hover:bg-cyan-100 text-[10px] font-black text-slate-500 hover:text-cyan-600 rounded-full transition-all border border-slate-200"
+    >
+      ⚡ LUNASIN (Rp {data.targetPerOrang?.toLocaleString('id-ID')})
+    </button>
+  </div>
+  
+  <button 
+    onClick={handlePayment}
+    disabled={!inputNominal || inputNominal <= 0}
+    className={`w-full py-5 font-black rounded-2xl shadow-lg active:scale-95 transition-all flex items-center justify-center gap-3 ${
+      inputNominal > 0 
+        ? "bg-gradient-to-tr from-cyan-500 to-teal-400 text-slate-900 shadow-cyan-500/20" 
+        : "bg-slate-200 text-slate-400 cursor-not-allowed shadow-none"
+    }`}
+  >
+    <span className="text-xl">💳</span>
+    {inputNominal > 0 ? `BAYAR Rp ${inputNominal.toLocaleString('id-ID')}` : "MASUKKAN NOMINAL"}
+  </button>
+
+  <p className="text-[9px] text-slate-400 mt-4 font-bold uppercase tracking-tighter italic">
+    *Mendukung QRIS, GoPay, ShopeePay & Transfer Bank
+  </p>
+</div>
 
             {/* Riwayat */}
             <h3 className="font-bold text-slate-800 mb-4 text-sm uppercase">Riwayat Transaksi</h3>
