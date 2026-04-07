@@ -353,16 +353,31 @@ const persentaseTotal = Math.min(Math.floor((totalTerkumpul / targetProyek) * 10
 </nav>
 
       <section className="max-w-xl mx-auto p-6">
-        {/* Header Project */}
-        <div className="mb-6">
-          <div className="flex items-center gap-2 mb-4">
-            <img src={data.fotoPembuat} className="w-8 h-8 rounded-full border border-slate-200" />
-            <span className="text-xs font-bold text-slate-500">@{data.usernamePembuat}</span>
-            <span className="text-[10px] bg-slate-200 text-slate-600 px-2 py-1 rounded-md ml-auto font-bold uppercase">Project Owner</span>
-          </div>
-          <h2 className="text-3xl font-black text-slate-800 mb-2 leading-tight">{data.namaPatungan}</h2>
-          <p className="text-sm text-slate-500 leading-relaxed">{data.deskripsi}</p>
-        </div>
+  {/* Header Project */}
+  <div className="mb-6">
+    <div className="flex items-center gap-3 mb-4">
+      {/* Foto Profil */}
+      <img src={data.fotoPembuat} className="w-10 h-10 rounded-full border-2 border-white shadow-sm" alt="Owner" />
+      
+      {/* Informasi Nama & Username */}
+      <div className="flex flex-col">
+        <span className="text-sm font-black text-slate-800 leading-none mb-1">
+          {data.pembuat}
+        </span>
+        <span className="text-[10px] font-bold text-slate-400">
+          @{data.usernamePembuat}
+        </span>
+      </div>
+
+      {/* Label Badge */}
+      <span className="text-[9px] bg-slate-900 text-white px-2.5 py-1 rounded-full ml-auto font-black uppercase tracking-wider shadow-sm">
+        Project Owner
+      </span>
+    </div>
+
+    <h2 className="text-3xl font-black text-slate-800 mb-2 leading-tight">{data.namaPatungan}</h2>
+    <p className="text-sm text-slate-500 leading-relaxed">{data.deskripsi}</p>
+  </div>
 
         {/* Tab Navigation */}
 <div className="flex gap-2 bg-white p-1.5 rounded-2xl border border-slate-200 mb-8 sticky top-[68px] z-[40] shadow-sm">
