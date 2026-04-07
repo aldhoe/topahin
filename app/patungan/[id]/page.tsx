@@ -531,6 +531,8 @@ const persentaseTotal = Math.min(Math.floor((totalTerkumpul / targetProyek) * 10
     </div>
   )}
 </div>
+          </motion.div>
+        )}
 
         {/* --- KONTEN TAB: RENCANA (BUDGET / ITINERARY) --- */}
         {activeTab === "rencana" && (
