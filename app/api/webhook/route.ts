@@ -1,52 +1,44 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/firebase";
-import { doc, updateDoc, increment, arrayUnion, Timestamp } from "firebase/firestore";
+import { doc, updateDoc, increment, arrayUnion, getDoc } from "firebase/firestore";
 
 export async function POST(request: Request) {
   try {
     const data = await request.json();
-    console.log("=== LOG WEBHOOK MASUK ===");
-    console.log("Order ID:", data.order_id);
-    console.log("Status:", data.transaction_status);
+    console.log("Dapet notifikasi dari Midtrans:", data);
 
-    // Kunci utama: Hanya proses kalau statusnya SETTLEMENT (Lunas)
-    if (data.transaction_status === "settlement" || data.transaction_status === "capture") {
+    // 1. Cek statusnya. 'settlement' artinya duit beneran udah masuk/lunas.
+    if (data.transaction_status === "settlement") {
       
-      // Ambil ID Project dari order_id (Format: IDPROJECT-TIMESTAMP)
-      const orderId = data.order_id;
-      const projectId = orderId.split("-")[0];
-
-      if (!projectId) {
-        console.error("❌ ERROR: ID Project gak ketemu di order_id!");
-        return NextResponse.json({ error: "Invalid Project ID" }, { status: 400 });
-      }
+      // Ingat tadi kita bikin order_id formatnya "${id}-${Date.now()}"?
+      // Kita pecah lagi buat dapetin ID Project aslinya.
+      const orderIdParts = data.order_id.split("-");
+      const projectId = orderIdParts[0]; // ID project Firestore
 
       const docRef = doc(db, "patungan", projectId);
-      
-      // Hitung nominal (mastiin dia angka)
-      const nominal = parseFloat(data.gross_amount);
+      const projectSnap = await getDoc(docRef);
 
-      // UPDATE FIRESTORE
-      await updateDoc(docRef, {
-        terkumpul: increment(nominal),
-        riwayat: arrayUnion({
-          nama: data.customer_details?.first_name || "Anggota",
-          nominal: nominal,
-          waktu: Timestamp.now(), // Pake Timestamp Firestore biar gak error di server
-          metode: data.payment_type || "transfer",
-          username: "system_payment" // Biar gak kosong di UI
-        })
-      });
-
-      console.log("✅ BERHASIL: Firestore Update Selesai!");
-      return NextResponse.json({ message: "Webhook Success" }, { status: 200 });
+      if (projectSnap.exists()) {
+        // 2. UPDATE FIRESTORE OTOMATIS
+        await updateDoc(docRef, {
+          terkumpul: increment(Number(data.gross_amount)), // Nambahin saldo terkumpul
+          riwayat: arrayUnion({
+            nama: data.customer_details?.first_name || "Anggota",
+            nominal: Number(data.gross_amount),
+            waktu: new Date(), // Simpan waktu bayar
+            metode: data.payment_type // 'credit_card', 'gopay', 'qris', dll
+          })
+        });
+        
+        console.log("Firestore berhasil diupdate otomatis! 💸");
+      }
     }
 
-    return NextResponse.json({ message: "Status ignored" }, { status: 200 });
+    // 3. Kasih tau Midtrans kalau datanya udah kita terima (Wajib)
+    return NextResponse.json({ status: "OK" });
 
-  } catch (error: any) {
-    console.error("❌ ERROR WEBHOOK:", error.message);
-    // Kita tetep kasih 200 biar Midtrans gak nyepam, tapi kita tau ada yang salah
-    return NextResponse.json({ error: error.message }, { status: 200 }); 
+  } catch (error) {
+    console.error("Webhook Error:", error);
+    return NextResponse.json({ error: "Gagal proses webhook" }, { status: 500 });
   }
 }
