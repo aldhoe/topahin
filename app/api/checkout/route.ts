@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 const Midtrans = require("midtrans-client");
 
 let snap = new Midtrans.Snap({
-  isProduction: false, // Set ke true kalau udah mau pake duit beneran
+  isProduction: true, // Set ke true kalau udah mau pake duit beneran
   serverKey: process.env.MIDTRANS_SERVER_KEY,
 });
 

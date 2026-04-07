@@ -1,4 +1,4 @@
-import { initializeApp, getApps } from "firebase/app";
+import { initializeApp, getApps, getApp } from "firebase/app"; // Tambah getApp
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
@@ -11,10 +11,9 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-// Inisialisasi Firebase (cek dulu biar gak double-init pas refresh)
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+// Pake getApp() biar gak re-init terus di server Vercel
+const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 
-// Export layanan yang kita butuhin
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const googleProvider = new GoogleAuthProvider();
