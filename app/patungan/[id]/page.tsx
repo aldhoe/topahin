@@ -487,29 +487,50 @@ const persentaseTotal = Math.min(Math.floor((totalTerkumpul / targetProyek) * 10
 })()}
 
             {/* Riwayat */}
-            <h3 className="font-bold text-slate-800 mb-4 text-sm uppercase">Riwayat Transaksi</h3>
-            <div className="space-y-3">
-              {data.riwayat && data.riwayat.length > 0 ? (
-                [...data.riwayat].reverse().map((donatur: any, index: number) => (
-                  <div key={index} className="flex justify-between items-center p-4 bg-white rounded-2xl border border-slate-100">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-cyan-50 text-cyan-600 rounded-full flex items-center justify-center font-bold text-xs uppercase">
-                        {donatur.nama?.charAt(0)}
-                      </div>
-                      <div>
-                        <p className="text-sm font-bold text-slate-800">{donatur.nama}</p>
-                        <p className="text-[10px] text-slate-400 font-medium">{new Date(donatur.waktu?.toDate()).toLocaleDateString('id-ID')}</p>
-                      </div>
-                    </div>
-                    <p className="text-sm font-black text-slate-800">+Rp {donatur.nominal?.toLocaleString('id-ID')}</p>
-                  </div>
-                ))
-              ) : (
-                <p className="text-xs text-slate-400 text-center py-6 border border-dashed rounded-2xl">Belum ada transaksi</p>
-              )}
-            </div>
-          </motion.div>
-        )}
+<h3 className="font-bold text-slate-800 mb-4 text-sm uppercase tracking-wider pl-1">Riwayat Transaksi</h3>
+<div className="space-y-3">
+  {data.riwayat && data.riwayat.length > 0 ? (
+    [...data.riwayat].reverse().map((donatur: any, index: number) => (
+      <div key={index} className="flex justify-between items-center p-4 bg-white rounded-[24px] border border-slate-100 shadow-sm transition-all hover:border-cyan-100">
+        <div className="flex items-center gap-3">
+          {/* Avatar Bulat */}
+          <div className="w-10 h-10 bg-slate-50 text-slate-400 border border-slate-100 rounded-full flex items-center justify-center font-black text-sm uppercase">
+            {donatur.nama?.charAt(0)}
+          </div>
+          
+          <div>
+            {/* Nama Asli (Gede) */}
+            <p className="text-sm font-black text-slate-800 leading-none mb-1">
+              {donatur.nama}
+            </p>
+            {/* USERNAME (Tambahan Baru) */}
+            <p className="text-[10px] font-bold text-cyan-600 uppercase tracking-tight mb-1">
+              @{donatur.username || 'anonim'}
+            </p>
+            {/* Tanggal */}
+            <p className="text-[9px] text-slate-400 font-bold uppercase tracking-tighter">
+              {new Date(donatur.waktu?.toDate()).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+            </p>
+          </div>
+        </div>
+
+        <div className="text-right">
+          <p className="text-sm font-black text-emerald-500">
+            +Rp {donatur.nominal?.toLocaleString('id-ID')}
+          </p>
+          <p className="text-[8px] font-black text-slate-300 uppercase italic">
+            {donatur.metode?.replace(/_/g, " ")}
+          </p>
+        </div>
+      </div>
+    ))
+  ) : (
+    <div className="flex flex-col items-center justify-center py-12 border-2 border-dashed border-slate-100 rounded-[32px] bg-slate-50/50">
+       <span className="text-2xl mb-2">💸</span>
+       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">Belum ada transaksi masuk</p>
+    </div>
+  )}
+</div>
 
         {/* --- KONTEN TAB: RENCANA (BUDGET / ITINERARY) --- */}
         {activeTab === "rencana" && (

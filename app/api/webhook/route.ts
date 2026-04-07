@@ -37,6 +37,20 @@ export async function POST(request: Request) {
       // Pastiin nominal beneran angka (Number) biar gak ngerusak field 'terkumpul'
       const nominal = Number(data.gross_amount);
 
+      // Di dalam file webhook lu
+const namaAsli = data.customer_details?.first_name || data.customer_details?.full_name || usernameDariId.charAt(0).toUpperCase() + usernameDariId.slice(1);
+
+await docRef.update({
+  terkumpul: admin.firestore.FieldValue.increment(nominal),
+  riwayat: admin.firestore.FieldValue.arrayUnion({
+    nama: namaAsli, // Nama asli dari bank/e-wallet/Midtrans
+    username: usernameDariId, // Username Topahin lu (buat sinkronisasi)
+    nominal: nominal,
+    waktu: admin.firestore.Timestamp.now(),
+    metode: data.payment_type || "transfer"
+  })
+});
+
       await docRef.update({
         // Increment otomatis nambahin angka yang sudah ada
         terkumpul: admin.firestore.FieldValue.increment(nominal),
