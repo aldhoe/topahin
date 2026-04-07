@@ -1,14 +1,13 @@
 import { NextResponse } from "next/server";
 import * as admin from "firebase-admin";
 
-// Inisialisasi Admin SDK (Cek biar gak dobel)
+// Inisialisasi Admin SDK
 if (!admin.apps.length) {
   try {
     admin.initializeApp({
       credential: admin.credential.cert({
         projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
         clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-        // Replace \n biar line break-nya bener di Vercel
         privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
       }),
     });
@@ -26,25 +25,33 @@ export async function POST(request: Request) {
     console.log("📩 Webhook Masuk:", data.order_id, data.transaction_status);
 
     if (data.transaction_status === "settlement" || data.transaction_status === "capture") {
-      // Potong order_id buat dapet ID Dokumen (ID-TIMESTAMP)
-      const projectId = data.order_id.split("-")[0];
       
-      const docRef = dbAdmin.collection("patungan").doc(projectId);
-      const nominal = parseFloat(data.gross_amount);
+      // --- PEMBEDAHAN ORDER_ID ---
+      // Format dari Frontend: IDPROJECT - USERNAME - TIMESTAMP
+      const parts = data.order_id.split("-");
+      const projectId = parts[0];
+      const usernameDariId = parts[1] || "anonim"; // Ngambil bagian tengah
 
-      // Pake Admin SDK: Gak peduli Rules, PASTI TEMBUS
+      const docRef = dbAdmin.collection("patungan").doc(projectId);
+      
+      // Pastiin nominal beneran angka (Number) biar gak ngerusak field 'terkumpul'
+      const nominal = Number(data.gross_amount);
+
       await docRef.update({
+        // Increment otomatis nambahin angka yang sudah ada
         terkumpul: admin.firestore.FieldValue.increment(nominal),
+        
+        // Simpan ke riwayat dengan username yang benar
         riwayat: admin.firestore.FieldValue.arrayUnion({
-          nama: data.customer_details?.full_name || "Anggota",
+          nama: data.customer_details?.first_name || data.customer_details?.full_name || "Anggota",
           nominal: nominal,
           waktu: admin.firestore.Timestamp.now(),
           metode: data.payment_type || "transfer",
-          username: "system_payment"
+          username: usernameDariId // <--- INI BIAR TAB ANGGOTA UPDATE
         })
       });
 
-      console.log("🚀 SALDO BERHASIL DIUPDATE!");
+      console.log(`🚀 SALDO BERHASIL DIUPDATE UNTUK @${usernameDariId}`);
       return NextResponse.json({ status: "OK" }, { status: 200 });
     }
 

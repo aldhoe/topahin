@@ -267,17 +267,22 @@ const executeDeleteRundown = async () => {
   if (inputNominal <= 0) return showToast("Masukin nominal yang mau dibayar dulu ya! 💸", "error");
 
   try {
-    const orderId = `${id}-${Date.now()}`;
+    // 1. SIAPIN USERNAME (Ambil dari profil atau email sebelum tanda @ kalau gak ada)
+    const usernameClean = profile?.username || auth.currentUser.email?.split('@')[0] || "anonim";
+    
+    // 2. BIKIN ORDER ID YANG ADA USERNAME-NYA
+    // Format: idProject-username-timestamp
+    const orderId = `${id}-${usernameClean.replace(/\s/g, "").toLowerCase()}-${Date.now()}`;
     
     const response = await fetch("/api/checkout", {
       method: "POST",
       body: JSON.stringify({
-        orderId: orderId,
-        amount: inputNominal, // <--- GANTI INI (Bukan targetPerOrang lagi)
+        orderId: orderId, // <--- Pake ID yang baru
+        amount: inputNominal,
         itemDetails: [
           { 
             id: id, 
-            price: inputNominal, // <--- HARUS SAMA DENGAN AMOUNT
+            price: inputNominal, 
             quantity: 1, 
             name: `Patungan: ${data.namaPatungan}` 
           }
@@ -1184,101 +1189,107 @@ const executeDeleteRundown = async () => {
         )}
 
         {/* --- KONTEN TAB: ANGGOTA --- */}
-        {activeTab === "anggota" && (
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-            
-            {/* Cek apakah ini project Bebas atau ada targetnya */}
-            {data.tipe === "bebas" ? (
-              <div className="bg-white p-6 rounded-[32px] border border-slate-100 text-center py-12 shadow-sm">
-                <div className="w-16 h-16 bg-cyan-50 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">🌍</div>
-                <h3 className="font-bold text-slate-800 mb-2">Target Bebas</h3>
-                <p className="text-sm text-slate-500">Project ini nggak punya patokan harga per orang. Siapa aja boleh nyumbang berapapun!</p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <div className="bg-slate-900 p-5 rounded-3xl text-white shadow-lg flex justify-between items-center mb-6">
-                  <div>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Target Per Orang</p>
-                    <p className="text-xl font-black text-cyan-400">Rp {data.targetPerOrang?.toLocaleString('id-ID')}</p>
+{activeTab === "anggota" && (
+  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+    
+    {data.tipe === "bebas" ? (
+      <div className="bg-white p-6 rounded-[32px] border border-slate-100 text-center py-12 shadow-sm">
+        <div className="w-16 h-16 bg-cyan-50 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">🌍</div>
+        <h3 className="font-bold text-slate-800 mb-2">Target Bebas</h3>
+        <p className="text-sm text-slate-500">Project ini nggak punya patokan harga per orang. Siapa aja boleh nyumbang berapapun!</p>
+      </div>
+    ) : (
+      <div className="space-y-4">
+        {/* Header Ringkasan */}
+        <div className="bg-slate-900 p-5 rounded-3xl text-white shadow-lg flex justify-between items-center mb-6">
+          <div>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Target Per Orang</p>
+            <p className="text-xl font-black text-cyan-400">Rp {data.targetPerOrang?.toLocaleString('id-ID')}</p>
+          </div>
+          <div className="bg-white/10 px-3 py-1.5 rounded-xl">
+            <p className="text-xs font-bold text-slate-300">👥 {data.listAnggota?.length || 0} Orang</p>
+          </div>
+        </div>
+
+        <h3 className="font-bold text-slate-800 mb-4 text-sm uppercase tracking-wider pl-2">Status Pembayaran</h3>
+        
+        {data.listAnggota?.map((username: string, index: number) => {
+          // 1. HITUNG TOTAL SETORAN (Gue tambahin toLowerCase biar makin akurat)
+          const totalSetoran = data.riwayat
+            ?.filter((r: any) => 
+              r.username?.toLowerCase() === username.toLowerCase() || 
+              r.nama?.toLowerCase().replace(/\s/g, "") === username.toLowerCase()
+            )
+            .reduce((acc: number, curr: any) => acc + curr.nominal, 0) || 0;
+          
+          // 2. LOGIKA NAMA DISPLAY
+          let namaAsli = username;
+          if (username === data.usernamePembuat) {
+            namaAsli = data.pembuat;
+          } else {
+            // Cari nama dari riwayat transaksi terbaru milik user ini
+            const userRiwayat = data.riwayat?.find((r: any) => r.username?.toLowerCase() === username.toLowerCase());
+            if (userRiwayat) namaAsli = userRiwayat.nama;
+          }
+          
+          const displayNama = namaAsli === username 
+            ? username.charAt(0).toUpperCase() + username.slice(1) 
+            : namaAsli;
+
+          // 3. PROGRESS & STATUS LUNAS
+          // Pakai Math.floor biar gak lewat dari 100% kalau ada yang bayar lebih
+          const progressMember = Math.min(Math.floor((totalSetoran / data.targetPerOrang) * 100), 100) || 0;
+          const isLunas = totalSetoran >= data.targetPerOrang;
+
+          return (
+            <div key={index} className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm relative overflow-hidden flex flex-col gap-3">
+              {isLunas && (
+                <div className="absolute top-0 right-0 bg-teal-500 text-white text-[9px] font-black uppercase px-3 py-1 rounded-bl-xl z-10 shadow-sm">
+                  LUNAS 🔥
+                </div>
+              )}
+              
+              <div className="flex justify-between items-center z-10">
+                <div className="flex items-center gap-3">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black text-sm uppercase ${isLunas ? 'bg-teal-50 text-teal-600 border border-teal-100' : 'bg-slate-50 text-slate-500 border border-slate-200'}`}>
+                    {displayNama.charAt(0)}
                   </div>
-                  <div className="bg-white/10 px-3 py-1.5 rounded-xl">
-                    <p className="text-xs font-bold text-slate-300">👥 {data.listAnggota?.length || 0} Orang</p>
+                  <div>
+                    <p className="text-sm font-black text-slate-800 line-clamp-1">{displayNama}</p>
+                    <p className="text-[10px] font-bold text-cyan-600 tracking-wide">@{username}</p>
                   </div>
                 </div>
-
-                <h3 className="font-bold text-slate-800 mb-4 text-sm uppercase tracking-wider pl-2">Status Pembayaran</h3>
                 
-                {data.listAnggota?.map((username: string, index: number) => {
-                  // 1. Hitung total uang yang udah disetor sama username ini
-                  const totalSetoran = data.riwayat
-                    ?.filter((r: any) => r.username === username || r.nama.toLowerCase().replace(/\s/g, "") === username)
-                    .reduce((acc: number, curr: any) => acc + curr.nominal, 0) || 0;
-                  
-                  // 2. Trik Pintar Cari Nama Asli: 
-                  // Kalau dia pembuat project, ambil dari data.pembuat. 
-                  // Kalau bukan, coba intip dari riwayat bayarnya. Kalau belum bayar sama sekali, huruf depannya dibesarin.
-                  let namaAsli = username;
-                  if (username === data.usernamePembuat) {
-                    namaAsli = data.pembuat;
-                  } else {
-                    const userRiwayat = data.riwayat?.find((r: any) => r.username === username);
-                    if (userRiwayat) namaAsli = userRiwayat.nama;
-                  }
-                  
-                  // Format nama biar huruf depannya kapital kalau terpaksa pakai username
-                  const displayNama = namaAsli === username 
-                    ? username.charAt(0).toUpperCase() + username.slice(1) 
-                    : namaAsli;
-
-                  const progressMember = Math.min(Math.round((totalSetoran / data.targetPerOrang) * 100), 100) || 0;
-                  const isLunas = totalSetoran >= data.targetPerOrang;
-
-                  return (
-                    <div key={index} className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm relative overflow-hidden flex flex-col gap-3">
-                      {isLunas && (
-                        <div className="absolute top-0 right-0 bg-teal-500 text-white text-[9px] font-black uppercase px-3 py-1 rounded-bl-xl z-10 shadow-sm">
-                          LUNAS 🔥
-                        </div>
-                      )}
-                      
-                      <div className="flex justify-between items-center z-10">
-                        <div className="flex items-center gap-3">
-                          <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black text-sm uppercase ${isLunas ? 'bg-teal-50 text-teal-600 border border-teal-100' : 'bg-slate-50 text-slate-500 border border-slate-200'}`}>
-                            {displayNama.charAt(0)}
-                          </div>
-                          <div>
-                            {/* NAMA ASLI DI SINI */}
-                            <p className="text-sm font-black text-slate-800 line-clamp-1">{displayNama}</p>
-                            {/* USERNAME DI BAWAHNYA */}
-                            <p className="text-[10px] font-bold text-cyan-600 tracking-wide">@{username}</p>
-                          </div>
-                        </div>
-                        
-                        <div className="text-right">
-                          <p className={`text-sm font-black ${isLunas ? 'text-teal-500' : 'text-slate-800'}`}>
-                            Rp {totalSetoran.toLocaleString('id-ID')}
-                          </p>
-                          <p className="text-[10px] font-bold text-slate-400">
-                            dari Rp {data.targetPerOrang.toLocaleString('id-ID')}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden z-10">
-                        <motion.div 
-                          initial={{ width: 0 }} 
-                          animate={{ width: `${progressMember}%` }} 
-                          transition={{ duration: 1, ease: "easeOut" }}
-                          className={`h-full rounded-full ${isLunas ? 'bg-teal-500' : 'bg-gradient-to-r from-cyan-500 to-teal-400'}`} 
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
+                <div className="text-right">
+                  <p className={`text-sm font-black ${isLunas ? 'text-teal-500' : 'text-slate-800'}`}>
+                    Rp {totalSetoran.toLocaleString('id-ID')}
+                  </p>
+                  <p className="text-[10px] font-bold text-slate-400">
+                    {isLunas ? 'Selesai' : `Sisa Rp ${(data.targetPerOrang - totalSetoran).toLocaleString('id-ID')}`}
+                  </p>
+                </div>
               </div>
-            )}
-          </motion.div>
-        )}
+
+              {/* Progress Bar Per Orang */}
+              <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden z-10">
+                <motion.div 
+                  initial={{ width: 0 }} 
+                  animate={{ width: `${progressMember}%` }} 
+                  transition={{ duration: 1, ease: "easeOut" }}
+                  className={`h-full rounded-full ${isLunas ? 'bg-teal-500' : 'bg-gradient-to-r from-cyan-500 to-teal-400'}`} 
+                />
+              </div>
+              
+              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">
+                {progressMember}% Progres Pembayaran
+              </p>
+            </div>
+          );
+        })}
+      </div>
+    )}
+  </motion.div>
+)}
 
       </section>
 
