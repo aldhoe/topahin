@@ -474,7 +474,7 @@ const persentaseTotal = Math.min(Math.floor((totalTerkumpul / targetProyek) * 10
           
           <button 
             onClick={handlePayment}
-            {/* Tombol mati kalau: Kosong, <= 0, atau > sisa tagihan */}
+            /* Tombol mati kalau: Kosong, <= 0, atau > sisa tagihan */
             disabled={!inputNominal || inputNominal <= 0 || inputNominal > sisaTagihan}
             className={`w-full py-5 font-black rounded-2xl shadow-lg active:scale-95 transition-all flex items-center justify-center gap-3 ${
               (inputNominal > 0 && inputNominal <= sisaTagihan)
