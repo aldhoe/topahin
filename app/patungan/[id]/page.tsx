@@ -323,6 +323,17 @@ const executeDeleteRundown = async () => {
 
   const progress = Math.min(Math.round((data.terkumpul / data.targetDana) * 100), 100) || 0;
 
+// --- LOGIKA HITUNG PROGRES TOTAL PROJECT ---
+// 1. Jumlahin semua nominal dari riwayat (Paksa jadi Number biar gak NaN)
+const totalTerkumpul = data.riwayat?.reduce((acc: number, curr: any) => 
+  acc + (Number(curr.nominal) || 0), 0) || 0;
+
+// 2. Tentukan Target Total (Pakai targetTotal atau hasil perkalian anggota)
+const targetProyek = data.targetTotal || (Number(data.targetPerOrang) * (data.listAnggota?.length || 0)) || 1;
+
+// 3. Hitung Persentase (Maksimal 100%)
+const persentaseTotal = Math.min(Math.floor((totalTerkumpul / targetProyek) * 100), 100) || 0;
+
   return (
     <main className="min-h-screen bg-slate-50 font-sans pb-40">
       {/* Navbar Atas */}
@@ -367,9 +378,45 @@ const executeDeleteRundown = async () => {
   <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
     
     {/* Card Progress Dana */}
-    <div className="bg-white p-6 rounded-[32px] shadow-sm border border-slate-100 mb-6">
-       {/* ... isi progress bar lu ... */}
+<div className="bg-white p-6 rounded-[32px] shadow-sm border border-slate-100 mb-6">
+  <div className="flex justify-between items-end mb-4">
+    <div>
+      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
+        Dana Terkumpul (Total)
+      </p>
+      <h1 className="text-3xl font-black text-slate-800">
+        Rp {totalTerkumpul.toLocaleString('id-ID')}
+      </h1>
     </div>
+    <div className="text-right">
+      <span className="text-[10px] font-black text-cyan-600 bg-cyan-50 px-2 py-1 rounded-lg">
+        {persentaseTotal}% TARGET
+      </span>
+    </div>
+  </div>
+
+  {/* Progress Bar Utama */}
+  <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden relative">
+    <motion.div 
+      initial={{ width: 0 }}
+      animate={{ width: `${persentaseTotal}%` }}
+      transition={{ duration: 1.5, ease: "easeOut" }}
+      className="h-full bg-gradient-to-r from-cyan-500 to-teal-400 rounded-full shadow-[0_0_12px_rgba(6,182,212,0.3)]"
+    />
+  </div>
+
+  <div className="flex justify-between mt-3 px-1">
+    <div className="flex items-center gap-1.5">
+      <div className="w-1.5 h-1.5 rounded-full bg-cyan-500 animate-pulse" />
+      <p className="text-[9px] font-bold text-slate-400 uppercase">
+        Target Proyek: Rp {targetProyek.toLocaleString('id-ID')}
+      </p>
+    </div>
+    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">
+      {data.listAnggota?.length || 0} Anggota Berpartisipasi
+    </p>
+  </div>
+</div>
 
     {/* TOMBOL BAYAR ASLI (Gantiin simulasi input dana) */}
     <div className="bg-white p-6 rounded-[32px] border border-slate-100 mb-8 text-center">
