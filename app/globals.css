@@ -1,26 +1,29 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@theme {
+  --color-topah-primary: #06b6d4;
+  --color-topah-accent: #14b8a6;
+  --color-topah-navy: #0f172a;
+  --color-topah-bg: #f8fafc;
+
+  /* Animasi muncul dari bawah (yang tadi) */
+  --animation-fade-in-up: fade-in-up 0.6s ease-out both;
+  /* Animasi ngalir terus tanpa henti (baru) */
+  --animation-gradient-x: gradient-x 3s ease infinite;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+@keyframes fade-in-up {
+  0% { opacity: 0; transform: translateY(20px); }
+  100% { opacity: 1; transform: translateY(0); }
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* Keyframes buat warna gradasi yang bergerak terus */
+@keyframes gradient-x {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--color-topah-bg);
+  color: var(--color-topah-navy);
 }
