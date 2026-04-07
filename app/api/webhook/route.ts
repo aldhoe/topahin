@@ -26,42 +26,38 @@ export async function POST(request: Request) {
 
     if (data.transaction_status === "settlement" || data.transaction_status === "capture") {
       
-      // --- PEMBEDAHAN ORDER_ID ---
-      // Format dari Frontend: IDPROJECT - USERNAME - TIMESTAMP
       const parts = data.order_id.split("-");
       const projectId = parts[0];
-      const usernameDariId = parts[1] || "anonim"; // Ngambil bagian tengah
+      const usernameDariId = parts[1] || "anonim";
 
       const docRef = dbAdmin.collection("patungan").doc(projectId);
       
-      // Pastiin nominal beneran angka (Number) biar gak ngerusak field 'terkumpul'
+      // 1. AMBIL DATA DULU BUAT CEK BIAR GAK DOUBLE
+      const docSnap = await docRef.get();
+      if (!docSnap.exists) return NextResponse.json({ error: "Project Not Found" }, { status: 404 });
+      
+      const projectData = docSnap.data();
+      // Cek apakah Order ID ini sudah pernah diproses sebelumnya
+      const sudahAda = projectData?.riwayat?.some((r: any) => r.order_id === data.order_id);
+
+      if (sudahAda) {
+        console.log("⚠️ Transaksi sudah pernah dicatat, skip!");
+        return NextResponse.json({ status: "Already Processed" }, { status: 200 });
+      }
+
       const nominal = Number(data.gross_amount);
+      const namaAsli = data.customer_details?.first_name || data.customer_details?.full_name || (usernameDariId.charAt(0).toUpperCase() + usernameDariId.slice(1));
 
-      // Di dalam file webhook lu
-const namaAsli = data.customer_details?.first_name || data.customer_details?.full_name || usernameDariId.charAt(0).toUpperCase() + usernameDariId.slice(1);
-
-await docRef.update({
-  terkumpul: admin.firestore.FieldValue.increment(nominal),
-  riwayat: admin.firestore.FieldValue.arrayUnion({
-    nama: namaAsli, // Nama asli dari bank/e-wallet/Midtrans
-    username: usernameDariId, // Username Topahin lu (buat sinkronisasi)
-    nominal: nominal,
-    waktu: admin.firestore.Timestamp.now(),
-    metode: data.payment_type || "transfer"
-  })
-});
-
+      // 2. UPDATE CUMA SEKALI AJA (GABUNGIN SEMUA DI SINI)
       await docRef.update({
-        // Increment otomatis nambahin angka yang sudah ada
         terkumpul: admin.firestore.FieldValue.increment(nominal),
-        
-        // Simpan ke riwayat dengan username yang benar
         riwayat: admin.firestore.FieldValue.arrayUnion({
-          nama: data.customer_details?.first_name || data.customer_details?.full_name || "Anggota",
+          order_id: data.order_id, // Simpan ID biar bisa dicek sama "SATPAM" di atas
+          nama: namaAsli, 
+          username: usernameDariId, 
           nominal: nominal,
           waktu: admin.firestore.Timestamp.now(),
-          metode: data.payment_type || "transfer",
-          username: usernameDariId // <--- INI BIAR TAB ANGGOTA UPDATE
+          metode: data.payment_type || "transfer"
         })
       });
 
