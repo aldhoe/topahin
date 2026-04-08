@@ -6,12 +6,13 @@ import { collection, addDoc, serverTimestamp, doc, getDoc, getDocs, query, where
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
+import { Coins, Scale, Target } from "lucide-react";
 
 export default function BuatPatungan() {
   const router = useRouter();
   const [nama, setNama] = useState("");
   const [deskripsi, setDeskripsi] = useState("");
-  const [tipe, setTipe] = useState<"bebas" | "bagi_rata" | "per_orang">("bebas");
+  const [tipe, setTipe] = useState<"bebas" | "bagi_rata" | "per_orang">("bagi_rata");
   const [amount, setAmount] = useState("");
   const [anggota, setAnggota] = useState("");
   const [isTrip, setIsTrip] = useState(false);
@@ -141,24 +142,53 @@ const validateUsernames = async (input: string) => {
       <section className="max-w-xl mx-auto p-6 mt-4">
         <div className="bg-white p-6 rounded-[32px] border border-slate-200 shadow-sm space-y-6">
           
-          {/* Tipe Patungan */}
-          <div>
-            <label className="block text-xs font-bold text-slate-400 uppercase mb-3">Tipe Project</label>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <button onClick={() => setTipe("bebas")} className={`p-4 rounded-2xl border-2 text-left transition-all ${tipe === "bebas" ? "border-cyan-500 bg-cyan-50" : "border-slate-100 bg-white"}`}>
-                <div className="text-xl mb-2">🌍</div>
-                <h4 className="font-bold text-slate-800 text-sm">Bebas</h4>
-              </button>
-              <button onClick={() => setTipe("bagi_rata")} className={`p-4 rounded-2xl border-2 text-left transition-all ${tipe === "bagi_rata" ? "border-cyan-500 bg-cyan-50" : "border-slate-100 bg-white"}`}>
-                <div className="text-xl mb-2">⚖️</div>
-                <h4 className="font-bold text-slate-800 text-sm">Bagi Rata</h4>
-              </button>
-              <button onClick={() => setTipe("per_orang")} className={`p-4 rounded-2xl border-2 text-left transition-all ${tipe === "per_orang" ? "border-cyan-500 bg-cyan-50" : "border-slate-100 bg-white"}`}>
-                <div className="text-xl mb-2">🎯</div>
-                <h4 className="font-bold text-slate-800 text-sm">Fix /Orang</h4>
-              </button>
-            </div>
-          </div>
+          {/* Tipe Patungan - Sisa 2 Opsi Solid */}
+<div>
+  <label className="block text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-4 pl-1">
+    Metode Patungan
+  </label>
+  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+    
+    {/* BAGI RATA */}
+    <button 
+      type="button"
+      onClick={() => setTipe("bagi_rata")} 
+      className={`p-6 rounded-[32px] border-2 text-left transition-all group relative overflow-hidden ${
+        tipe === "bagi_rata" ? "border-cyan-500 bg-cyan-50/50 shadow-md shadow-cyan-100" : "border-slate-100 bg-white hover:border-slate-200 shadow-sm"
+      }`}
+    >
+      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-4 transition-all duration-300 ${
+        tipe === "bagi_rata" ? "bg-cyan-500 text-white scale-110 shadow-lg shadow-cyan-200" : "bg-slate-50 text-slate-400 group-hover:bg-slate-100"
+      }`}>
+        <Scale size={24} strokeWidth={2.5} />
+      </div>
+      <h4 className="font-black text-slate-800 text-base tracking-tight">Bagi Rata</h4>
+      <p className="text-[11px] text-slate-500 font-bold leading-relaxed mt-1 opacity-80">
+        Total biaya otomatis dibagi rata ke semua anggota tim.
+      </p>
+    </button>
+
+    {/* PER ORANG */}
+    <button 
+      type="button"
+      onClick={() => setTipe("per_orang")} 
+      className={`p-6 rounded-[32px] border-2 text-left transition-all group relative overflow-hidden ${
+        tipe === "per_orang" ? "border-cyan-500 bg-cyan-50/50 shadow-md shadow-cyan-100" : "border-slate-100 bg-white hover:border-slate-200 shadow-sm"
+      }`}
+    >
+      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-4 transition-all duration-300 ${
+        tipe === "per_orang" ? "bg-cyan-500 text-white scale-110 shadow-lg shadow-cyan-200" : "bg-slate-50 text-slate-400 group-hover:bg-slate-100"
+      }`}>
+        <Target size={24} strokeWidth={2.5} />
+      </div>
+      <h4 className="font-black text-slate-800 text-base tracking-tight">Per Orangan</h4>
+      <p className="text-[11px] text-slate-500 font-bold leading-relaxed mt-1 opacity-80">
+        Tentukan target nominal berbeda untuk tiap-tiap orang.
+      </p>
+    </button>
+    
+  </div>
+</div>
 
           {/* Nama Project */}
           <div>
