@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { db, auth, storage } from "@/lib/firebase";
-import { doc, onSnapshot, updateDoc, increment, arrayUnion, getDoc, deleteDoc } from "firebase/firestore";
+import { doc, onSnapshot, updateDoc, increment, arrayUnion, getDoc, deleteDoc, collection } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
@@ -71,6 +71,15 @@ useEffect(() => {
   const [openCategory, setOpenCategory] = useState<string | null>();
   const [newItemInput, setNewItemInput] = useState("");
   const [newPackingPIC, setNewPackingPIC] = useState("");
+
+  const [allUsers, setAllUsers] = useState<any[]>([]);
+
+useEffect(() => {
+  const unsub = onSnapshot(collection(db, "users"), (snapshot) => {
+    setAllUsers(snapshot.docs.map(doc => doc.data()));
+  });
+  return () => unsub();
+}, []);
 
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" | "info" } | null>(null);
   
@@ -1564,20 +1573,23 @@ const persentaseTotal = Math.min(Math.floor((totalTerkumpul / targetProyek) * 10
         <h3 className="font-bold text-slate-800 mb-4 text-sm uppercase tracking-wider pl-2">Status Pembayaran</h3>
         
         {data.listAnggota?.map((username: string, index: number) => {
-          // 1. HITUNG TOTAL SETORAN (Gue tambahin toLowerCase biar makin akurat)
+          // 1. HITUNG TOTAL SETORAN
           const totalSetoran = data.riwayat
             ?.filter((r: any) => 
               r.username?.toLowerCase() === username.toLowerCase() || 
               r.nama?.toLowerCase().replace(/\s/g, "") === username.toLowerCase()
             )
             .reduce((acc: number, curr: any) => acc + curr.nominal, 0) || 0;
+
+          // 2. LOGIKA AMBIL DATA DARI ALLUSERS (Berdasarkan Username)
+          const detailUser = allUsers?.find((u: any) => u.username?.toLowerCase() === username.toLowerCase());
+          const userPhotoURL = detailUser?.photoURL || "";
           
-          // 2. LOGIKA NAMA DISPLAY
+          // 3. LOGIKA NAMA DISPLAY
           let namaAsli = username;
           if (username === data.usernamePembuat) {
             namaAsli = data.pembuat;
           } else {
-            // Cari nama dari riwayat transaksi terbaru milik user ini
             const userRiwayat = data.riwayat?.find((r: any) => r.username?.toLowerCase() === username.toLowerCase());
             if (userRiwayat) namaAsli = userRiwayat.nama;
           }
@@ -1586,8 +1598,7 @@ const persentaseTotal = Math.min(Math.floor((totalTerkumpul / targetProyek) * 10
             ? username.charAt(0).toUpperCase() + username.slice(1) 
             : namaAsli;
 
-          // 3. PROGRESS & STATUS LUNAS
-          // Pakai Math.floor biar gak lewat dari 100% kalau ada yang bayar lebih
+          // 4. PROGRESS & STATUS LUNAS
           const progressMember = Math.min(Math.floor((totalSetoran / data.targetPerOrang) * 100), 100) || 0;
           const isLunas = totalSetoran >= data.targetPerOrang;
 
@@ -1601,8 +1612,18 @@ const persentaseTotal = Math.min(Math.floor((totalTerkumpul / targetProyek) * 10
               
               <div className="flex justify-between items-center z-10">
                 <div className="flex items-center gap-3">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black text-sm uppercase ${isLunas ? 'bg-teal-50 text-teal-600 border border-teal-100' : 'bg-slate-50 text-slate-500 border border-slate-200'}`}>
-                    {displayNama.charAt(0)}
+                  {/* Avatar Bulat - Ambil dari detailUser */}
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black text-sm uppercase overflow-hidden shrink-0 border ${isLunas ? 'bg-teal-50 text-teal-600 border-teal-100' : 'bg-slate-50 text-slate-500 border-slate-200'}`}>
+                    {userPhotoURL ? (
+                      <img 
+                        src={userPhotoURL} 
+                        alt={displayNama} 
+                        className="w-full h-full object-cover"
+                        onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                      />
+                    ) : (
+                      <span>{displayNama.charAt(0)}</span>
+                    )}
                   </div>
                   <div>
                     <p className="text-sm font-black text-slate-800 line-clamp-1">{displayNama}</p>
