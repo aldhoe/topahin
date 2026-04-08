@@ -656,10 +656,22 @@ const persentaseTotal = Math.min(Math.floor((totalTerkumpul / targetProyek) * 10
     [...data.riwayat].reverse().map((donatur: any, index: number) => (
       <div key={index} className="flex justify-between items-center p-4 bg-white rounded-[24px] border border-slate-100 shadow-sm transition-all hover:border-cyan-100">
         <div className="flex items-center gap-3">
-          {/* Avatar Bulat */}
-          <div className="w-10 h-10 bg-slate-50 text-slate-400 border border-slate-100 rounded-full flex items-center justify-center font-black text-sm uppercase">
-            {donatur.nama?.charAt(0)}
-          </div>
+          {/* Avatar Bulat - Sekarang Pake Foto Profil */}
+<div className="w-10 h-10 bg-slate-50 text-slate-400 border border-slate-100 rounded-full flex items-center justify-center font-black text-sm uppercase overflow-hidden shrink-0 shadow-sm transition-transform hover:scale-105">
+  {donatur.photoURL ? (
+    <img 
+      src={donatur.photoURL} 
+      alt={donatur.nama} 
+      className="w-full h-full object-cover"
+      onError={(e) => {
+        // Jika link foto bermasalah/expired, sembunyikan gambar & otomatis munculin inisial
+        e.currentTarget.style.display = 'none';
+      }}
+    />
+  ) : (
+    <span className="tracking-tighter">{donatur.nama?.charAt(0)}</span>
+  )}
+</div>
           
           <div>
             {/* Nama Asli (Gede) */}
