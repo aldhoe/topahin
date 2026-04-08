@@ -407,7 +407,32 @@ const executeDeleteRundown = async () => {
   }
 };
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center font-bold text-slate-400">Loading Planner...</div>;
+  if (loading) return (
+  <div className="min-h-screen bg-white flex flex-col items-center justify-center gap-5 transition-opacity duration-300">
+    <div className="relative flex items-center justify-center">
+      {/* 1. Efek Ring Luar yang Muter (Animasi Cyan) */}
+      <div className="w-20 h-20 border-2 border-cyan-100 border-t-cyan-500 rounded-full animate-spin"></div>
+      
+      {/* 2. IKON LU DI TENGAH (Muter pelan atau pulsing) */}
+      <div className="absolute flex items-center justify-center">
+        {/* -- GANTI SOURCE ICON LU DI SINI -- */}
+        <img 
+          src="/icon-512x512.png" // Cth: "/logo-icon.png" atau "/icon.svg"
+          alt="Topahin Logo"
+          className="w-15 h-15 object-contain animate-pulse shadow-xl shadow-cyan-500/10 rounded-3xl p-1" // Tambahin shadow & p-1 biar manis
+        />
+        {/* Alternatif kalau pake teks initial: */}
+        {/* <div className="w-12 h-12 bg-cyan-500 rounded-3xl flex items-center justify-center font-black text-white text-xl rotate-[-10deg]">T</div> */}
+      </div>
+    </div>
+    
+    {/* 3. TEKS LOADING (Estetik & Modern) */}
+    <div className="flex flex-col items-center">
+      <h1 className="text-2xl font-black text-slate-800 tracking-tighter italic">TOPAHIN<span className="text-cyan-500">.</span></h1>
+      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.4em] animate-pulse">LOADING DATA...</p>
+    </div>
+  </div>
+);
 
   const progress = Math.min(Math.round((data.terkumpul / data.targetDana) * 100), 100) || 0;
 
@@ -642,7 +667,7 @@ const persentaseTotal = Math.min(Math.floor((totalTerkumpul / targetProyek) * 10
               {donatur.nama}
             </p>
             {/* USERNAME (Tambahan Baru) */}
-            <p className="text-[10px] font-bold text-cyan-600 uppercase tracking-tight mb-1">
+            <p className="text-[10px] font-bold text-cyan-600 lowercase tracking-tight mb-1">
               @{donatur.username || 'anonim'}
             </p>
             {/* Tanggal */}
@@ -1068,7 +1093,7 @@ const persentaseTotal = Math.min(Math.floor((totalTerkumpul / targetProyek) * 10
     {/* TOMBOL MAPS (Pake Koordinat Presisi) */}
     {item.location?.lat && item.location?.lng && (
       <a 
-        href={`https://www.google.com/maps/search/?api=1&query=${item.location.lat},${item.location.lng}`} 
+        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(item.location.address)}`} 
         target="_blank" 
         rel="noopener noreferrer" 
         onClick={(e) => e.stopPropagation()} 
@@ -1831,12 +1856,19 @@ const persentaseTotal = Math.min(Math.floor((totalTerkumpul / targetProyek) * 10
   )}
 
   {/* BAGIAN LOKASI DENGAN PREVIEW MAP */}
-  <div className="overflow-hidden bg-slate-50 rounded-3xl border border-slate-100 group cursor-pointer" 
-       onClick={() => {
-         if (selectedItem.location?.lat) {
-           window.open(`https://www.google.com/maps/search/?api=1&query=${selectedItem.location.lat},${selectedItem.location.lng}`, "_blank");
-         }
-       }}>
+  <div 
+  className="overflow-hidden bg-slate-50 rounded-3xl border border-slate-100 group cursor-pointer" 
+  onClick={() => {
+    // AMBIL ALAMATNYA
+    const address = selectedItem.location?.address || selectedItem.lokasi;
+    
+    if (address) {
+      // PAKAI FORMAT QUERY BIAR MUNCUL NAMA TEMPATNYA
+      const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
+      window.open(url, "_blank");
+    }
+  }}
+>
     <div className="p-4 flex items-center justify-between">
       <div className="flex items-start gap-3">
         <div className="w-10 h-10 bg-cyan-100 text-cyan-600 rounded-2xl flex items-center justify-center shrink-0 text-xl shadow-sm">📍</div>

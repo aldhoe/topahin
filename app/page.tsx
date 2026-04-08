@@ -88,7 +88,32 @@ export default function Home() {
     }
   };
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center bg-slate-50 text-cyan-500 font-bold">Loading Topahin...</div>;
+   if (loading) return (
+  <div className="min-h-screen bg-white flex flex-col items-center justify-center gap-5 transition-opacity duration-300">
+    <div className="relative flex items-center justify-center">
+      {/* 1. Efek Ring Luar yang Muter (Animasi Cyan) */}
+      <div className="w-20 h-20 border-2 border-cyan-100 border-t-cyan-500 rounded-full animate-spin"></div>
+      
+      {/* 2. IKON LU DI TENGAH (Muter pelan atau pulsing) */}
+      <div className="absolute flex items-center justify-center">
+        {/* -- GANTI SOURCE ICON LU DI SINI -- */}
+        <img 
+          src="/icon-512x512.png" // Cth: "/logo-icon.png" atau "/icon.svg"
+          alt="Topahin Logo"
+          className="w-15 h-15 object-contain animate-pulse shadow-xl shadow-cyan-500/10 rounded-3xl p-1" // Tambahin shadow & p-1 biar manis
+        />
+        {/* Alternatif kalau pake teks initial: */}
+        {/* <div className="w-12 h-12 bg-cyan-500 rounded-3xl flex items-center justify-center font-black text-white text-xl rotate-[-10deg]">T</div> */}
+      </div>
+    </div>
+    
+    {/* 3. TEKS LOADING (Estetik & Modern) */}
+    <div className="flex flex-col items-center">
+      <h1 className="text-2xl font-black text-slate-800 tracking-tighter italic">TOPAHIN<span className="text-cyan-500">.</span></h1>
+      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.4em] animate-pulse">LOADING DATA...</p>
+    </div>
+  </div>
+);
 
   return (
     <main className="min-h-screen bg-slate-50 font-sans">
