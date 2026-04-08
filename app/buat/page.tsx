@@ -68,7 +68,7 @@ const validateUsernames = async (input: string) => {
 
   // 3. CEK VALIDASI USERNAME (Jangan kasih lewat kalau ada yang ngaco)
   if (invalidUsers.length > 0) {
-    return showToast(`Username "${invalidUsers[0]}" nggak terdaftar, Ren. Cek lagi!`, "error");
+    return showToast(`Username "${invalidUsers[0]}" tidak terdaftar. Cek lagi!`, "error");
   }
 
   setLoading(true);

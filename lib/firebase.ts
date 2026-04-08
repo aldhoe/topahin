@@ -1,6 +1,7 @@
 import { initializeApp, getApps } from "firebase/app";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
+import { getStorage } from "firebase/storage";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -14,7 +15,10 @@ const firebaseConfig = {
 // Inisialisasi Firebase (cek dulu biar gak double-init pas refresh)
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 
+const storage = getStorage(app);
+
 // Export layanan yang kita butuhin
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const googleProvider = new GoogleAuthProvider();
+export { storage }

@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { db, auth } from "@/lib/firebase";
+import { db, auth, storage } from "@/lib/firebase";
 import { doc, onSnapshot, updateDoc, increment, arrayUnion, getDoc, deleteDoc } from "firebase/firestore";
+import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
+import MapPicker from "@/components/MapPicker";
 
 export default function DetailPatungan() {
   const { id } = useParams();
@@ -27,6 +29,10 @@ export default function DetailPatungan() {
   const [loading, setLoading] = useState(true);
 
   const [profile, setProfile] = useState<any>(null);
+
+  const [isUploading, setIsUploading] = useState(false);
+
+  const [rLocation, setRLocation] = useState({ address: "", lat: 0, lng: 0 });
 
 // Ambil profil user yang login buat data Midtrans
 useEffect(() => {
@@ -87,6 +93,42 @@ useEffect(() => {
   const [rCatatan, setRCatatan] = useState("");
   const [selectedItem, setSelectedItem] = useState<any>(null);
 
+  const handleUploadFoto = async (file: File) => {
+  setIsUploading(true); // Aktifin loading
+  try {
+    // 1. Buat referensi tempat simpan
+    const storageRef = ref(storage, `rundown/${Date.now()}-${file.name}`);
+    
+    // 2. Proses Upload
+    const snapshot = await uploadBytes(storageRef, file);
+    
+    // 3. Ambil URL gambarnya setelah beres
+    const downloadURL = await getDownloadURL(snapshot.ref);
+    
+    showToast("Foto berhasil diupload! 📸", "success");
+    return downloadURL;
+  } catch (error: any) {
+    console.error("Gagal upload:", error);
+    
+    // Ganti alert jadul pake toast biar estetik
+    showToast("Gagal upload foto. Coba lagi ya!", "error");
+    return "";
+  } finally {
+    setIsUploading(false); // Matiin loading di akhir, mau sukses atau gagal
+  }
+};
+
+const deleteOldFoto = async (fotoUrl: string) => {
+  if (!fotoUrl || !fotoUrl.includes("firebasestorage")) return;
+  try {
+    const oldFotoRef = ref(storage, fotoUrl);
+    await deleteObject(oldFotoRef);
+    console.log("✅ Foto lama berhasil dihapus dari storage");
+  } catch (error) {
+    console.error("Gagal hapus foto lama:", error);
+  }
+};
+
   // State buat nyimpen ID jadwal yang mau dihapus (kalau null berarti modalnya nutup)
 const [itemToDelete, setItemToDelete] = useState<string | null>(null);
 const [showDeleteProjectModal, setShowDeleteProjectModal] = useState(false);
@@ -101,6 +143,7 @@ const [showDeleteProjectModal, setShowDeleteProjectModal] = useState(false);
     }
   }, [data]);
 
+  
   // --- 2. FUNGSI SAKTI TUGAS & PACKING (POSISINYA HARUS DI SINI) ---
   const updateTasksToDB = async (newTasks: any[]) => {
     setTasks(newTasks); 
@@ -206,9 +249,29 @@ const [editForm, setEditForm] = useState<any>({});
 
 const handleSaveEditRundown = async () => {
   try {
+    // 1. CARI DATA ASLI SEBELUM DI-EDIT (Buat dapet URL foto lama)
+    const originalItem = data.rundown.find((item: any) => item.id === editForm.id);
+    
+    // 1. TAMBAHIN BARIS INI (Cari data lama di database):
+    const itemOriginal = data.rundown.find((item: any) => item.id === editForm.id);
+
+    // 2. LOGIKA HAPUS FOTO LAMA (Cuma jalan kalo fotonya beneran diganti)
+    if (originalItem?.foto && originalItem.foto !== editForm.foto) {
+      try {
+        const oldFotoRef = ref(storage, originalItem.foto);
+        await deleteObject(oldFotoRef);
+        console.log("✅ Foto lama di storage berhasil dibuang!");
+      } catch (err) {
+        // Kita log aja, jangan sampe gagal simpan cuma gara-gara file fisik gak ketemu
+        console.error("Gagal hapus file lama di storage:", err);
+      }
+    }
+
+    // 3. PROSES UPDATE DATA KAYAK BIASA
     const updatedRundown = data.rundown.map((item: any) => 
       item.id === editForm.id ? editForm : item
     );
+    
     const docRef = doc(db, "patungan", id as string);
     await updateDoc(docRef, { rundown: updatedRundown });
 
@@ -232,6 +295,21 @@ const executeDeleteRundown = async () => {
   if (!itemToDelete) return; // Kalau kosong, batalin
   
   try {
+    // --- LOGIKA HAPUS FOTO DI STORAGE (Biar Gak Nyampah) ---
+    const itemTarget = data.rundown.find((item: any) => item.id === itemToDelete);
+    
+    if (itemTarget?.foto && itemTarget.foto.includes("firebasestorage")) {
+      try {
+        const fotoRef = ref(storage, itemTarget.foto);
+        await deleteObject(fotoRef);
+        console.log("✅ File foto di storage berhasil dibuang");
+      } catch (err) {
+        // Kita log aja, jangan gagalin hapus data kalo misal fotonya udah gak ada
+        console.error("Gagal hapus file fisik:", err);
+      }
+    }
+    // ------------------------------------------------------
+
     const updatedRundown = data.rundown.filter((item: any) => item.id !== itemToDelete);
     const docRef = doc(db, "patungan", id as string);
     await updateDoc(docRef, { rundown: updatedRundown });
@@ -708,19 +786,84 @@ const persentaseTotal = Math.min(Math.floor((totalTerkumpul / targetProyek) * 10
       {/* Media & Links */}
       <div className="space-y-4">
         <div>
-          <label className="block text-[10px] font-black text-slate-500 uppercase mb-2 ml-1 tracking-widest">URL Foto (Optional)</label>
-          <input type="text" value={rFoto} onChange={(e) => setRFoto(e.target.value)} placeholder="https://image-url.com" className="w-full p-3.5 rounded-2xl bg-slate-800 border border-slate-700 text-white text-[10px] font-medium outline-none focus:border-cyan-500" />
+  <label className="block text-[10px] font-black text-slate-500 uppercase mb-3 ml-1 tracking-widest">Foto Lokasi</label>
+  <div className="relative group">
+    <input 
+      type="file" 
+      accept="image/*" 
+      className="hidden" 
+      id="upload-foto-dark" 
+      onChange={async (e) => {
+  const file = e.target.files?.[0];
+  if (file) {
+    // Kalo sebelumnya udah sempet upload foto (rFoto ada isinya), hapus dulu yang lama
+    if (rFoto) await deleteOldFoto(rFoto); 
+    
+    const url = await handleUploadFoto(file); 
+    setRFoto(url);
+  }
+}}
+    />
+    <label 
+  htmlFor="upload-foto-dark"
+  className={`flex flex-col items-center justify-center w-full min-h-[140px] rounded-[24px] border-2 border-dashed transition-all cursor-pointer overflow-hidden ${
+    isUploading ? "bg-slate-800 border-cyan-500 animate-pulse" : "bg-slate-800/50 border-slate-700 hover:border-cyan-500/50"
+  }`}
+>
+  {isUploading ? (
+    <div className="flex flex-col items-center gap-2">
+      <div className="w-6 h-6 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin" />
+      <span className="text-[10px] font-black text-cyan-500 uppercase tracking-widest">Uploading...</span>
+    </div>
+  ) : rFoto ? (
+        <div className="relative w-full h-full min-h-[140px]">
+          <img src={rFoto} className="w-full h-full object-cover" alt="Preview" />
+          <div className="absolute inset-0 bg-slate-900/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+            <span className="text-[10px] font-black text-white uppercase tracking-widest bg-slate-900/80 px-4 py-2 rounded-full border border-white/20">Ganti Foto</span>
+          </div>
         </div>
-        <div className="grid grid-cols-2 gap-3">
-          <input type="text" value={rMaps} onChange={(e) => setRMaps(e.target.value)} placeholder="Link G-Maps" className="w-full p-3.5 rounded-2xl bg-slate-800 border border-slate-700 text-white text-[10px] font-medium outline-none focus:border-cyan-500" />
-          <input type="text" value={rLink} onChange={(e) => setRLink(e.target.value)} placeholder="Link Info/Review" className="w-full p-3.5 rounded-2xl bg-slate-800 border border-slate-700 text-white text-[10px] font-medium outline-none focus:border-cyan-500" />
+      ) : (
+        <div className="flex flex-col items-center gap-2">
+          <div className="w-10 h-10 bg-slate-700 rounded-full flex items-center justify-center text-xl shadow-inner">📸</div>
+          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tighter">Klik buat ambil dari gallery</span>
         </div>
+      )}
+    </label>
+  </div>
+</div>
+        <div className="grid grid-cols-1 gap-4 mt-4">
+  {/* BAGIAN MAP PICKER (Gantiin Link G-Maps Lama) */}
+  <div className="space-y-2">
+    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">
+      Titik Lokasi (G-Maps)
+    </label>
+    <MapPicker 
+  currentLocation={rLocation} 
+  onLocationChange={(newLoc) => setRLocation(newLoc)} 
+  variant="dark" 
+/>
+  </div>
+
+  {/* INPUT LINK INFO/REVIEW (Tetep ada di bawahnya) */}
+  <div className="space-y-2">
+    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">
+      Link Info Tambahan
+    </label>
+    <input 
+      type="text" 
+      value={rLink} 
+      onChange={(e) => setRLink(e.target.value)} 
+      placeholder="Contoh: Link Review TikTok / Menu" 
+      className="w-full p-3.5 rounded-2xl bg-slate-800 border border-slate-700 text-white text-sm font-bold outline-none focus:border-cyan-500" 
+    />
+  </div>
+</div>
       </div>
 
       {/* Catatan */}
       <div>
         <label className="block text-[10px] font-black text-slate-500 uppercase mb-2 ml-1 tracking-widest">Catatan Tambahan</label>
-        <textarea value={rCatatan} onChange={(e) => setRCatatan(e.target.value)} placeholder="Tips: Jangan lupa bawa baju ganti..." className="w-full p-4 rounded-2xl bg-slate-800 border border-slate-700 text-white text-sm font-medium h-24 resize-none outline-none focus:border-cyan-500" />
+        <textarea value={rCatatan} onChange={(e) => setRCatatan(e.target.value)} placeholder="Tips: Bawa sunscreen" className="w-full p-3.5 rounded-2xl bg-slate-800 border border-slate-700 text-white text-sm font-bold outline-none focus:border-cyan-500 resize-none" />
       </div>
 
       <button onClick={handleAddRundown} className="w-full bg-cyan-500 text-slate-900 font-black py-4 rounded-[20px] active:scale-95 transition-all text-sm uppercase tracking-widest shadow-lg shadow-cyan-500/20">
@@ -918,29 +1061,45 @@ const persentaseTotal = Math.min(Math.floor((totalTerkumpul / targetProyek) * 10
         </div>
       )}
 
-      {/* BARIS 4: FOOTER LINKS (LINK AKTIF, GAK BUKA MODAL) */}
-      {(item.linkMaps || item.linkExternal) && (
-        <div className="flex items-center gap-4 pt-4 mt-1 border-t border-white/10">
-          {item.linkMaps && (
-            <a 
-              href={item.linkMaps} target="_blank" rel="noopener noreferrer" 
-              onClick={(e) => e.stopPropagation()} // <-- Cegah modal kebuka kalau klik maps
-              className="text-[9px] font-black text-blue-300 flex items-center gap-1.5 tracking-[0.15em] hover:text-blue-100 transition-colors"
-            >
-              <span className="w-1 h-1 bg-blue-400 rounded-full shadow-[0_0_5px_#60a5fa]" /> MAPS
-            </a>
-          )}
-          {item.linkExternal && (
-            <a 
-              href={item.linkExternal} target="_blank" rel="noopener noreferrer"
-              onClick={(e) => e.stopPropagation()} // <-- Cegah modal kebuka kalau klik info
-              className="text-[9px] font-black text-slate-400 flex items-center gap-1.5 tracking-[0.15em] hover:text-white transition-colors"
-            >
-              <span className="w-1 h-1 bg-slate-500 rounded-full" /> INFO
-            </a>
-          )}
+      {/* BARIS 4: FOOTER LINKS (SINKRON DENGAN DATA MAPS BARU) */}
+{(item.location?.address || item.linkExternal) && (
+  <div className="flex items-center gap-4 pt-4 mt-1 border-t border-white/10">
+    
+    {/* TOMBOL MAPS (Pake Koordinat Presisi) */}
+    {item.location?.lat && item.location?.lng && (
+      <a 
+        href={`https://www.google.com/maps/search/?api=1&query=${item.location.lat},${item.location.lng}`} 
+        target="_blank" 
+        rel="noopener noreferrer" 
+        onClick={(e) => e.stopPropagation()} 
+        className="group flex items-center gap-2 transition-all"
+      >
+        <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 rounded-lg transition-colors">
+          <span className="w-1.5 h-1.5 bg-blue-400 rounded-full shadow-[0_0_8px_#60a5fa] animate-pulse" />
+          <span className="text-[9px] font-black text-blue-300 tracking-[0.15em] uppercase">
+            {item.location.address ? item.location.address.split(',')[0] : "MAPS"}
+          </span>
         </div>
-      )}
+      </a>
+    )}
+
+    {/* TOMBOL INFO / REVIEW */}
+    {item.linkExternal && (
+      <a 
+        href={item.linkExternal} 
+        target="_blank" 
+        rel="noopener noreferrer"
+        onClick={(e) => e.stopPropagation()} 
+        className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-800/50 hover:bg-slate-700/50 border border-slate-700 rounded-lg transition-all"
+      >
+        <span className="w-1.5 h-1.5 bg-slate-500 rounded-full" />
+        <span className="text-[9px] font-black text-slate-400 tracking-[0.15em] uppercase hover:text-white transition-colors">
+          INFO
+        </span>
+      </a>
+    )}
+  </div>
+)}
     </div>
   </div>
 </motion.div>
@@ -1564,19 +1723,89 @@ const persentaseTotal = Math.min(Math.floor((totalTerkumpul / targetProyek) * 10
                 <input type="text" value={editForm.lokasi} onChange={(e) => setEditForm({...editForm, lokasi: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-cyan-500/50 outline-none mt-1" />
               </div>
               <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1">URL Foto</label>
-                <input type="text" value={editForm.foto || ""} onChange={(e) => setEditForm({...editForm, foto: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-cyan-500/50 outline-none mt-1" />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1">Link Maps</label>
-                  <input type="text" value={editForm.linkMaps || ""} onChange={(e) => setEditForm({...editForm, linkMaps: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-cyan-500/50 outline-none mt-1" />
-                </div>
-                <div>
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1">Link Info</label>
-                  <input type="text" value={editForm.linkExternal || ""} onChange={(e) => setEditForm({...editForm, linkExternal: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-cyan-500/50 outline-none mt-1" />
-                </div>
-              </div>
+  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1 mb-2 block">Foto Lokasi</label>
+  <div className="relative">
+    <input 
+      type="file" 
+      accept="image/*" 
+      className="hidden" 
+      id="edit-foto-light" 
+      onChange={async (e) => {
+  const file = e.target.files?.[0];
+  if (file) {
+    // 1. CARI DULU DATA ASLINYA DI SINI BIAR KETEMU 'itemOriginal'
+    const itemOriginal = data.rundown.find((item: any) => item.id === editForm.id);
+
+    // 2. SEKARANG BARU BISA DIBANDINGIN
+    // Hapus foto "sementara" yang baru diupload tapi gak jadi dipake (user ganti-ganti foto pas edit)
+    if (editForm.foto && editForm.foto !== itemOriginal?.foto) {
+       await deleteOldFoto(editForm.foto);
+    }
+
+    const url = await handleUploadFoto(file);
+    setEditForm({...editForm, foto: url});
+  }
+}}
+    />
+    <label 
+  htmlFor="edit-foto-light"
+  className={`flex flex-col items-center justify-center w-full min-h-[120px] border-2 border-dashed rounded-2xl cursor-pointer overflow-hidden transition-all group ${
+    isUploading 
+      ? "bg-slate-100 border-cyan-400 animate-pulse" 
+      : "bg-slate-50 border-slate-200 hover:bg-slate-100 hover:border-slate-300"
+  }`}
+>
+  {isUploading ? (
+    /* --- TAMPILAN PAS LAGI UPLOAD --- */
+    <div className="flex flex-col items-center gap-2">
+      <div className="w-5 h-5 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin" />
+      <span className="text-[9px] font-black text-cyan-600 uppercase tracking-widest">Memproses...</span>
+    </div>
+  ) : editForm.foto ? (
+    /* --- TAMPILAN KALO UDAH ADA FOTO --- */
+    <div className="relative w-full h-full min-h-[120px]">
+      <img src={editForm.foto} className="w-full h-full object-cover" alt="Preview Edit" />
+      <div className="absolute inset-0 bg-slate-900/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+         <span className="text-[9px] font-black text-white uppercase tracking-widest bg-slate-900/80 px-3 py-1.5 rounded-lg border border-white/20">Ganti Foto</span>
+      </div>
+    </div>
+  ) : (
+    /* --- TAMPILAN AWAL (KOSONG) --- */
+    <div className="text-center">
+      <span className="text-xl block mb-1">🖼️</span>
+      <span className="text-[9px] font-bold text-slate-400 uppercase">Pilih Foto</span>
+    </div>
+  )}
+</label>
+  </div>
+</div>
+              <div className="flex flex-col gap-5 mt-4">
+  {/* 1. BAGIAN MAPS (FULL WIDTH) */}
+  <div className="space-y-2">
+    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1 block">
+      Lokasi Tempat (G-Maps)
+    </label>
+    <MapPicker 
+      currentLocation={editForm.location} 
+      onLocationChange={(newLoc) => setEditForm({ ...editForm, location: newLoc })} 
+      variant="light" // Tetap light karena ini di modal putih
+    />
+  </div>
+
+  {/* 2. BAGIAN LINK INFO (DI BAWAHNYA) */}
+  <div className="space-y-2">
+    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1 block">
+      Link Info / Review
+    </label>
+    <input 
+      type="text" 
+      value={editForm.linkExternal || ""} 
+      onChange={(e) => setEditForm({...editForm, linkExternal: e.target.value})} 
+      placeholder="Masukkan link review atau info tambahan..."
+      className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3.5 text-sm font-bold text-slate-900 focus:ring-2 focus:ring-cyan-500/50 outline-none transition-all placeholder:text-slate-400" 
+    />
+  </div>
+</div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1">Transport</label>
@@ -1589,41 +1818,86 @@ const persentaseTotal = Math.min(Math.floor((totalTerkumpul / targetProyek) * 10
               </div>
               <div>
                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1">Catatan Tambahan</label>
-                <textarea value={editForm.catatan || ""} onChange={(e) => setEditForm({...editForm, catatan: e.target.value})} rows={3} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-cyan-500/50 outline-none mt-1" />
+                <textarea value={editForm.catatan || ""} onChange={(e) => setEditForm({...editForm, catatan: e.target.value})} rows={3} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-cyan-500/50 outline-none mt-1 resize-none" />
               </div>
             </div>
           ) : (
             /* --- MODE BACA (INFO) --- */
-            <div className="space-y-6">
-              {selectedItem.foto && (
-                <div className="w-full h-40 rounded-2xl overflow-hidden shadow-sm">
-                  <img src={selectedItem.foto} className="w-full h-full object-cover" alt="Lokasi" />
-                </div>
-              )}
-              <div className="flex items-start gap-4 p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                <div className="w-10 h-10 bg-cyan-100 text-cyan-600 rounded-full flex items-center justify-center shrink-0 text-xl">📍</div>
-                <div>
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Lokasi</p>
-                  <p className="text-sm font-bold text-slate-800">{selectedItem.lokasi || "Belum ada lokasi spesifik"}</p>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="p-4 bg-orange-50 rounded-2xl border border-orange-100/50">
-                  <p className="text-[10px] font-bold text-orange-400 uppercase tracking-wider mb-1">💸 Estimasi Biaya</p>
-                  <p className="text-sm font-black text-orange-600">{selectedItem.biaya > 0 ? `Rp ${selectedItem.biaya.toLocaleString('id-ID')}` : "Gratis / Sudah Cover"}</p>
-                </div>
-                <div className="p-4 bg-purple-50 rounded-2xl border border-purple-100/50">
-                  <p className="text-[10px] font-bold text-purple-400 uppercase tracking-wider mb-1">🚗 Transport</p>
-                  <p className="text-sm font-black text-purple-600">{selectedItem.transport || "-"}</p>
-                </div>
-              </div>
-              {selectedItem.catatan && (
-                <div className="p-4 bg-amber-50 rounded-2xl border border-amber-100/50">
-                  <p className="text-[10px] font-bold text-amber-500 uppercase tracking-wider mb-1">📝 Catatan</p>
-                  <p className="text-sm font-medium text-amber-800 whitespace-pre-line">{selectedItem.catatan}</p>
-                </div>
-              )}
-            </div>
+<div className="space-y-5">
+  {selectedItem.foto && (
+    <div className="w-full h-48 rounded-3xl overflow-hidden shadow-md border-4 border-white">
+      <img src={selectedItem.foto} className="w-full h-full object-cover" alt="Lokasi" />
+    </div>
+  )}
+
+  {/* BAGIAN LOKASI DENGAN PREVIEW MAP */}
+  <div className="overflow-hidden bg-slate-50 rounded-3xl border border-slate-100 group cursor-pointer" 
+       onClick={() => {
+         if (selectedItem.location?.lat) {
+           window.open(`https://www.google.com/maps/search/?api=1&query=${selectedItem.location.lat},${selectedItem.location.lng}`, "_blank");
+         }
+       }}>
+    <div className="p-4 flex items-center justify-between">
+      <div className="flex items-start gap-3">
+        <div className="w-10 h-10 bg-cyan-100 text-cyan-600 rounded-2xl flex items-center justify-center shrink-0 text-xl shadow-sm">📍</div>
+        <div>
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Titik Tujuan</p>
+          <p className="text-sm font-bold text-slate-800 leading-tight">
+            {selectedItem.location?.address || selectedItem.lokasi || "Lokasi belum ditentukan"}
+          </p>
+        </div>
+      </div>
+      <div className="p-2 bg-white rounded-xl shadow-sm group-hover:bg-cyan-500 group-hover:text-white transition-all text-slate-400">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M7 7h10v10"/><path d="M7 17 17 7"/></svg>
+      </div>
+    </div>
+
+    {/* MINI MAP PREVIEW (Hanya muncul kalau ada koordinat) */}
+    {selectedItem.location?.lat && (
+      <div className="h-32 w-full border-t border-slate-100 relative">
+        <img 
+          src={`https://maps.googleapis.com/maps/api/staticmap?center=${selectedItem.location.lat},${selectedItem.location.lng}&zoom=15&size=600x300&markers=color:0x06b6d4%7C${selectedItem.location.lat},${selectedItem.location.lng}&key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}`}
+          className="w-full h-full object-cover grayscale-[20%] hover:grayscale-0 transition-all"
+          alt="Map"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-900/20 to-transparent pointer-events-none" />
+      </div>
+    )}
+  </div>
+
+  <div className="grid grid-cols-2 gap-3">
+    <div className="p-4 bg-orange-50 rounded-2xl border border-orange-100/50">
+      <p className="text-[10px] font-bold text-orange-400 uppercase tracking-wider mb-1">💸 Estimasi Biaya</p>
+      <p className="text-sm font-black text-orange-600">{selectedItem.biaya > 0 ? `Rp ${selectedItem.biaya.toLocaleString('id-ID')}` : "Gratis / Sudah Cover"}</p>
+    </div>
+    <div className="p-4 bg-purple-50 rounded-2xl border border-purple-100/50">
+      <p className="text-[10px] font-bold text-purple-400 uppercase tracking-wider mb-1">🚗 Transport</p>
+      <p className="text-sm font-black text-purple-600">{selectedItem.transport || "-"}</p>
+    </div>
+  </div>
+
+  {/* TOMBOL LINK INFO (Kalau ada) */}
+  {selectedItem.linkExternal && (
+    <a 
+      href={selectedItem.linkExternal} 
+      target="_blank" 
+      className="flex items-center justify-between p-4 bg-indigo-50 border border-indigo-100 rounded-2xl group hover:bg-indigo-600 transition-all"
+    >
+      <div className="flex items-center gap-3">
+        <div className="w-8 h-8 bg-indigo-200 text-indigo-700 rounded-lg flex items-center justify-center text-lg group-hover:bg-white/20 group-hover:text-white transition-colors">🔗</div>
+        <span className="text-xs font-bold text-indigo-700 group-hover:text-white uppercase tracking-widest">Lihat Info / Review</span>
+      </div>
+      <span className="text-indigo-400 group-hover:text-white">→</span>
+    </a>
+  )}
+
+  {selectedItem.catatan && (
+    <div className="p-4 bg-amber-50 rounded-2xl border border-amber-100/50">
+      <p className="text-[10px] font-bold text-amber-500 uppercase tracking-wider mb-1">📝 Catatan</p>
+      <p className="text-sm font-medium text-amber-800 whitespace-pre-line leading-relaxed">{selectedItem.catatan}</p>
+    </div>
+  )}
+</div>
           )}
         </div>
 
