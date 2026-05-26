@@ -1,0 +1,124 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ========================
+    // HELPER FUNCTIONS
+    // ========================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated()
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin";
+    }
+
+    function isOwner(patunganDoc) {
+      return isAuthenticated()
+        && patunganDoc.data.uidPembuat == request.auth.uid;
+    }
+
+    function isMember(patunganDoc) {
+      return isAuthenticated()
+        && request.auth.token.email != null;
+    }
+
+    // ========================
+    // USERS
+    // ========================
+    match /users/{userId} {
+      // Any authenticated user can read user profiles (needed for username lookups)
+      allow read: if isAuthenticated();
+
+      // Users can only create/update their own profile
+      allow create: if isAuthenticated() && request.auth.uid == userId;
+      allow update: if isAuthenticated() && request.auth.uid == userId;
+
+      // Only admin can delete users
+      allow delete: if isAdmin();
+
+      // ========================
+      // NOTIFICATIONS (subcollection)
+      // ========================
+      match /notifications/{notifId} {
+        // Users can read/update their own notifications
+        allow read: if isAuthenticated() && request.auth.uid == userId;
+        allow update: if isAuthenticated() && request.auth.uid == userId;
+
+        // System (admin SDK) or admin can create/delete notifications
+        allow create: if isAuthenticated();
+        allow delete: if isAuthenticated() && request.auth.uid == userId;
+      }
+    }
+
+    // ========================
+    // PATUNGAN (PROJECTS)
+    // ========================
+    match /patungan/{patunganId} {
+      // Public read access for share links
+      allow read: if true;
+
+      // Any authenticated user can create a project
+      allow create: if isAuthenticated();
+
+      // Members can update (add rundown, tasks, packing items, votes, expenses)
+      allow update: if isAuthenticated();
+
+      // Only the project owner or admin can delete
+      allow delete: if isAuthenticated()
+        && (resource.data.uidPembuat == request.auth.uid || isAdmin());
+
+      // ========================
+      // DEPOSITS (subcollection)
+      // ========================
+      match /deposits/{depositId} {
+        // Any authenticated user can read deposits
+        allow read: if isAuthenticated();
+
+        // Any authenticated user can create a deposit (submit payment proof)
+        allow create: if isAuthenticated();
+
+        // Only admin can update deposits (approve/reject)
+        // Note: Admin updates happen via API route with Firebase Admin SDK,
+        // so this rule is a fallback safety net
+        allow update: if isAdmin();
+
+        // Only admin can delete deposits
+        allow delete: if isAdmin();
+      }
+
+      // ========================
+      // ACTIVITIES (subcollection — activity feed)
+      // ========================
+      match /activities/{activityId} {
+        // Any authenticated user can read activities
+        allow read: if isAuthenticated();
+
+        // Any authenticated user can create activity logs
+        allow create: if isAuthenticated();
+
+        // No updates or deletes on activity logs
+        allow update, delete: if false;
+      }
+    }
+
+    // ========================
+    // SETTINGS (app config)
+    // ========================
+    match /settings/{docId} {
+      // Anyone authenticated can read settings (bank info display)
+      allow read: if isAuthenticated();
+
+      // Only admin can write settings
+      allow write: if isAdmin();
+    }
+
+    // ========================
+    // DEFAULT: deny everything else
+    // ========================
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -1,29 +1,131 @@
 @import "tailwindcss";
 
 @theme {
-  --color-topah-primary: #06b6d4;
-  --color-topah-accent: #14b8a6;
-  --color-topah-navy: #0f172a;
-  --color-topah-bg: #f8fafc;
+  /* Brand Colors */
+  --color-brand: #06b6d4;
+  --color-brand-light: #e0f7fa;
+  --color-brand-dark: #0891b2;
 
-  /* Animasi muncul dari bawah (yang tadi) */
-  --animation-fade-in-up: fade-in-up 0.6s ease-out both;
-  /* Animasi ngalir terus tanpa henti (baru) */
-  --animation-gradient-x: gradient-x 3s ease infinite;
+  /* Semantic */
+  --color-success: #10b981;
+  --color-danger: #ef4444;
+  --color-warning: #f59e0b;
+
+  /* Surfaces */
+  --color-surface: #ffffff;
+  --color-surface-secondary: #f8fafc;
+  --color-surface-elevated: #ffffff;
+
+  /* Text */
+  --color-text-primary: #0f172a;
+  --color-text-secondary: #64748b;
+  --color-text-tertiary: #94a3b8;
+
+  /* Borders */
+  --color-border: #e2e8f0;
+  --color-border-light: #f1f5f9;
+
+  /* Typography Scale */
+  --text-label: 0.625rem;    /* 10px */
+  --text-caption: 0.6875rem; /* 11px */
+  --text-sm: 0.75rem;        /* 12px */
+  --text-body: 0.875rem;     /* 14px */
+  --text-lg: 1rem;           /* 16px */
+  --text-xl: 1.25rem;        /* 20px */
+  --text-2xl: 1.5rem;        /* 24px */
+  --text-display: 2.75rem;   /* 44px */
+
+  /* Radius */
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.25rem;
+  --radius-2xl: 1.5rem;
+  --radius-full: 9999px;
+
+  /* Shadows */
+  --shadow-card: 0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.02);
+  --shadow-elevated: 0 4px 12px rgba(0,0,0,0.06), 0 1px 4px rgba(0,0,0,0.04);
+  --shadow-modal: 0 20px 60px rgba(0,0,0,0.12), 0 4px 16px rgba(0,0,0,0.08);
+
+  /* Animations */
+  --animation-fade-in-up: fade-in-up 0.4s ease-out both;
 }
 
 @keyframes fade-in-up {
-  0% { opacity: 0; transform: translateY(20px); }
+  0% { opacity: 0; transform: translateY(12px); }
   100% { opacity: 1; transform: translateY(0); }
 }
 
-/* Keyframes buat warna gradasi yang bergerak terus */
-@keyframes gradient-x {
-  0%, 100% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
 }
 
+/* ===================== */
+/* BASE STYLES           */
+/* ===================== */
+
 body {
-  background-color: var(--color-topah-bg);
-  color: var(--color-topah-navy);
+  background-color: var(--color-surface-secondary);
+  color: var(--color-text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* PWA: prevent pull-to-refresh on mobile */
+html {
+  overscroll-behavior: none;
+}
+
+/* Smooth scrolling for day nav pills etc */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Custom scrollbar for modals */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #e2e8f0;
+  border-radius: 999px;
+}
+
+/* Number input: hide arrows */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+/* Safe area padding for iOS PWA */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+/* Shimmer effect for premium loading states */
+.shimmer {
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* Print styles for PDF export */
+@media print {
+  body { background: white !important; }
+  nav, .no-print { display: none !important; }
 }
